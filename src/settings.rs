@@ -1,6 +1,6 @@
 use serde_json;
-use timedata::{ FlexDay };
-use chrono::{ Duration, Weekday, NaiveTime };
+use timedata::{FlexDay};
+use chrono::{Duration, Weekday, NaiveTime, NaiveDate};
 use std::fs::File;
 use std::io::prelude::*;
 use std::error::Error;
@@ -21,7 +21,8 @@ pub struct Holidays {
 pub struct Settings {
     week_sched: WeekSchedule,
     holidays: Holidays,
-    week_goal: i64, // TODO switch to Duration when chrono supports Serialize/Deserialize
+    week_goal: i64,
+    // TODO switch to Duration when chrono supports Serialize/Deserialize
 }
 
 impl Settings {
@@ -40,7 +41,7 @@ impl Settings {
             Err(why) => panic!("couldn't create settings.json: {}", why.description()),
             Ok(file) => file,
         };
-        
+
         file.write_all(self.to_json().as_bytes()).expect("Unable to write data");
     }
 
@@ -54,6 +55,11 @@ impl Settings {
             }
         }
     }
+
+    pub fn is_exception(&self, day: FlexDay) -> Result<> {
+        settings.week_sched.exceptions.binary_search(date)
+        self.week_sched.exceptions.contains(day)
+    }
 }
 
 /*
@@ -61,8 +67,20 @@ impl Settings {
 */
 
 fn build_test_settings() -> Settings {
-    let ex_day = FlexDay { day: Some(Weekday::Fri), start: NaiveTime::from_hms(9, 10, 00), end: NaiveTime::from_hms(16, 50, 00), pause: Duration::minutes(30).num_minutes(), ..Default::default() };
-    let def_day = FlexDay { day: None, start: NaiveTime::from_hms(9, 10, 00), end: NaiveTime::from_hms(17, 10, 00), pause: Duration::minutes(30).num_minutes(), ..Default::default() };
+    let ex_day = FlexDay {
+        date: Some(Weekday::Fri),
+        start: NaiveTime::from_hms(9, 10, 00),
+        end: NaiveTime::from_hms(16, 50, 00),
+        pause: Duration::minutes(30).num_minutes(),
+        ..Default::default()
+    };
+    let def_day = FlexDay {
+        date: None,
+        start: NaiveTime::from_hms(9, 10, 00),
+        end: NaiveTime::from_hms(17, 10, 00),
+        pause: Duration::minutes(30).num_minutes(),
+        ..Default::default()
+    };
 
     let settings = Settings {
         week_sched: WeekSchedule {
@@ -102,4 +120,11 @@ fn settings_from_json_test() {
     let settings = Settings::from_json(json);
     let expected = build_test_settings();
     assert_eq!(settings, expected);
+}
+
+#[test]
+fn is_exception_test() {
+    let settings = build_test_settings();
+    assert!(settings.is_exception(FlexDay { date: NaiveDate::from_ymd(2017, 05, 05), ..Default::default() }));
+    assert!(!settings.is_exception(FlexDay { date: NaiveDate::from_ymd(2017, 05, 01), ..Default::default() }));
 }
