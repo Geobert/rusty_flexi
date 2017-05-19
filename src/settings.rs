@@ -4,6 +4,7 @@ use chrono::{Duration, Weekday, NaiveTime, NaiveDate, Datelike};
 use std::fs::File;
 use std::io::prelude::*;
 use std::error::Error;
+use std::cmp::Ordering;
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 pub struct WeekSchedule {
@@ -26,8 +27,8 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn from_json(serialized: String) -> Settings {
-        let settings = serde_json::from_str(&serialized).unwrap();
+    pub fn from_json(serialized: &str) -> Settings {
+        let settings = serde_json::from_str(serialized).unwrap();
         settings
     }
 
@@ -43,6 +44,8 @@ impl Settings {
         };
 
         file.write_all(self.to_json().as_bytes()).expect("Unable to write data");
+        file.write("\n".as_bytes()).expect("Unable to write \\n");
+        file.flush();
     }
 
     pub fn load() -> Settings {
@@ -51,15 +54,18 @@ impl Settings {
             Ok(mut file) => {
                 let mut json = String::new();
                 file.read_to_string(&mut json).expect("Failed to read settings.json");
-                Settings::from_json(json)
+                Settings::from_json(&json)
             }
         }
     }
 
-    pub fn get_default_day_settings_for(&self, day: &FlexDay) -> FlexDay {
+    pub fn get_default_day_settings_for(&self, day: &NaiveDate) -> FlexDay {
         match self.week_sched.exceptions.binary_search_by(
-            |flex_day| flex_day.date.unwrap().weekday() == day.date.unwrap().weekday()) {
-            Ok(flex_day) => flex_day,
+            |flex_day| match flex_day.weekday {
+                Some(w) => if w == day.weekday() { Ordering::Equal } else { Ordering::Less },
+                None => Ordering::Less,
+            }) {
+            Ok(idx) => self.week_sched.exceptions[idx],
             Err(_) => self.week_sched.default,
         }
     }
@@ -71,7 +77,8 @@ impl Settings {
 
 fn build_test_settings() -> Settings {
     let ex_day = FlexDay {
-        date: Some(Weekday::Fri),
+        date: None,
+        weekday: Some(Weekday::Fri),
         start: NaiveTime::from_hms(9, 10, 00),
         end: NaiveTime::from_hms(16, 50, 00),
         pause: Duration::minutes(30).num_minutes(),
@@ -79,6 +86,7 @@ fn build_test_settings() -> Settings {
     };
     let def_day = FlexDay {
         date: None,
+        weekday: None,
         start: NaiveTime::from_hms(9, 10, 00),
         end: NaiveTime::from_hms(17, 10, 00),
         pause: Duration::minutes(30).num_minutes(),
@@ -96,8 +104,8 @@ fn build_test_settings() -> Settings {
     settings
 }
 
-fn expected_test_json() -> String {
-    "{\"week_sched\":{\"default\":{\"day\":null,\"start\":\"09:10:00\",\"end\":\"17:10:00\",\"pause\":30,\"status\":\"Worked\"},\"exceptions\":[{\"day\":\"Fri\",\"start\":\"09:10:00\",\"end\":\"16:50:00\",\"pause\":30,\"status\":\"Worked\"}]},\"holidays\":{\"year\":26,\"left\":26},\"week_goal\":8880}".to_string()
+fn expected_test_json() -> &'static str {
+    r#"{"week_sched":{"default":{"date":null,"weekday":null,"start":"09:10:00","end":"17:10:00","pause":30,"status":"Worked"},"exceptions":[{"date":null,"weekday":"Fri","start":"09:10:00","end":"16:50:00","pause":30,"status":"Worked"}]},"holidays":{"year":26,"left":26},"week_goal":8880}"#
 }
 
 #[test]
@@ -125,9 +133,10 @@ fn settings_from_json_test() {
     assert_eq!(settings, expected);
 }
 
-#[test]
-fn is_exception_test() {
-    let settings = build_test_settings();
-    assert!(settings.is_exception(FlexDay { date: NaiveDate::from_ymd(2017, 05, 05), ..Default::default() }));
-    assert!(!settings.is_exception(FlexDay { date: NaiveDate::from_ymd(2017, 05, 01), ..Default::default() }));
-}
+//#[test]
+//fn get_default_day_settings_for_test() {
+//    let settings = build_test_settings();
+//    let mut expected = FlexDay { weekday:}
+//    assert_eq!(settings.get_default_day_settings_for(FlexDay { weekday: NaiveDate::from_ymd(2017, 05, 05), ..Default::default() }));
+//    assert!(!settings.is_exception(FlexDay { weekday: NaiveDate::from_ymd(2017, 05, 01), ..Default::default() }));
+//}

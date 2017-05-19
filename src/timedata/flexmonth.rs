@@ -63,9 +63,10 @@ fn find_last_monday_test() {
 }
 
 impl FlexMonth {
-    pub fn new(year: i32, month: u32, settings: Settings) -> FlexMonth {
+    pub fn new(year: i32, month: u32, settings: &Settings) -> FlexMonth {
         let first_day = NaiveDate::from_ymd(year, month, 1);
         let first_monday = match first_day.weekday() {
+            Weekday::Mon => first_day,
             Weekday::Sat | Weekday::Sun => find_first_monday(first_day),
             _ => find_last_monday(first_day.pred())
         };
@@ -73,23 +74,27 @@ impl FlexMonth {
         let last_sunday = find_first_monday_for(year, month + 1).pred();
         let range = NaiveDateIter::new(first_monday, last_sunday);
         let mut weeks: Vec<FlexWeek> = Vec::new();
+        let mut week: [FlexDay; 7] = [Default::default(); 7];
         let mut count = 0;
         for d in range {
-            let weekdaynum = count % 7;
-            if weekdaynum == 0 {
-                weeks.push(FlexWeek::new([FlexDay::new(d, settings); 7]));
+            let weekday_num = count % 7;
+            if (count > 0) & (weekday_num == 0) {
+                weeks.push(FlexWeek::new(week, settings));
             }
+            week[weekday_num] = FlexDay::new(d, settings);
             count += 1;
         }
+        weeks.push(FlexWeek::new(week, settings));
         FlexMonth { weeks: weeks, hours: Duration::hours(0), balance: Duration::hours(0) }
     }
 }
 
 #[test]
 fn create_month_test() {
-    let settings = Settings::load();
-    let mut month = FlexMonth::new(2017, 05, settings);
-    assert_eq!(month.weeks.len, 5);
-    assert_eq!(month.weeks[0].days[0].date, NaiveDate::from_ymd(2017, 05, 01));
-    assert_eq!(month.weeks[4].days[6].date , NaiveDate::from_ymd(2017, 06, 04));
+    let settings: Settings = Default::default();
+    let month = FlexMonth::new(2017, 05, &settings);
+
+    assert_eq!(month.weeks.len(), 5);
+    assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 05, 01)));
+    assert_eq!(month.weeks[4].days[6].date , Some(NaiveDate::from_ymd(2017, 06, 04)));
 }
