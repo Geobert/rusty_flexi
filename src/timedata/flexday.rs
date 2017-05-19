@@ -38,18 +38,19 @@ impl Default for FlexDay {
 }
 
 impl PartialEq for FlexDay {
-    fn eq(&self, other: FlexDay) {
+    fn eq(&self, other: &FlexDay) -> bool {
         self.date == other.date
     }
 }
 
 impl FlexDay {
     pub fn new(date: NaiveDate, settings: Settings) -> FlexDay {
-        let default = match settings.is_exception(date) {
-            true => ,
-            false => settings.week_sched.default,
-        };
-        FlexDay
-            { date: date, start: default., end: end, pause: pause.num_minutes(), status: status }
+//        let default = match settings.is_exception(date) {
+//            true => ,
+//            false => settings.week_sched.default,
+//        };
+//        FlexDay
+//            { date: date, start: default., end: end, pause: pause.num_minutes(), status: status }
+        FlexDay {..Default::default()}
     }
 }

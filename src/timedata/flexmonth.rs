@@ -77,7 +77,7 @@ impl FlexMonth {
         for d in range {
             let weekdaynum = count % 7;
             if weekdaynum == 0 {
-                weeks.push(FlexWeek::new([FlexDay::new(); 7]));
+                weeks.push(FlexWeek::new([FlexDay::new(d, settings); 7]));
             }
             count += 1;
         }

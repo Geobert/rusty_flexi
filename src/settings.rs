@@ -1,6 +1,6 @@
 use serde_json;
 use timedata::{FlexDay};
-use chrono::{Duration, Weekday, NaiveTime, NaiveDate};
+use chrono::{Duration, Weekday, NaiveTime, NaiveDate, Datelike};
 use std::fs::File;
 use std::io::prelude::*;
 use std::error::Error;
@@ -56,9 +56,12 @@ impl Settings {
         }
     }
 
-    pub fn is_exception(&self, day: FlexDay) -> Result<> {
-        settings.week_sched.exceptions.binary_search(date)
-        self.week_sched.exceptions.contains(day)
+    pub fn get_default_day_settings_for(&self, day: &FlexDay) -> FlexDay {
+        match self.week_sched.exceptions.binary_search_by(
+            |flex_day| flex_day.date.unwrap().weekday() == day.date.unwrap().weekday()) {
+            Ok(flex_day) => flex_day,
+            Err(_) => self.week_sched.default,
+        }
     }
 }
 
