@@ -11,6 +11,6 @@ use settings::Settings;
 
 fn main() {
     println!("Hello, world!");
-    let mut settings = Settings::load();
+    let settings = Settings::load();
     
 }
