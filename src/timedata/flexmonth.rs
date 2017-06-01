@@ -1,11 +1,20 @@
 use timedata::{FlexWeek, NaiveDateIter, FlexDay};
-use chrono::{Duration, NaiveDate, Weekday, Datelike};
+use chrono::{NaiveDate, Weekday, Datelike};
 use settings::Settings;
+use std::fs::{File, create_dir_all};
 
+use std::io::prelude::*;
+use std::error::Error;
+use savable::Savable;
+
+#[derive(Serialize, Deserialize, Default, PartialEq, Debug, Clone)]
 pub struct FlexMonth {
     pub weeks: Vec<FlexWeek>,
-    pub hours: Duration,
-    pub balance: Duration
+    pub year: i32,
+    pub month: u32,
+    pub hours: i64,
+    pub balance: i64
+    // TODO switch i64 to Duration when chrono supports Serialize/Deserialize
 }
 
 fn find_next_monday(day: NaiveDate) -> NaiveDate {
@@ -41,60 +50,7 @@ fn find_last_sunday_for(year: i32, month: u32) -> NaiveDate {
     }
 }
 
-
-#[test]
-fn find_next_monday_test() {
-    let mut day = NaiveDate::from_ymd(2017, 04, 01);
-    let mut first_monday = find_next_monday(day);
-    assert_eq!(first_monday, NaiveDate::from_ymd(2017, 04, 03));
-
-    day = NaiveDate::from_ymd(2017, 05, 01);
-    first_monday = find_next_monday(day);
-    assert_eq!(first_monday, NaiveDate::from_ymd(2017, 05, 01));
-
-    day = NaiveDate::from_ymd(2017, 03, 01);
-    first_monday = find_next_monday(day);
-    assert_eq!(first_monday, NaiveDate::from_ymd(2017, 03, 06));
-
-    day = NaiveDate::from_ymd(2016, 12, 01);
-    first_monday = find_next_monday(day);
-    assert_eq!(first_monday, NaiveDate::from_ymd(2016, 12, 05));
-}
-
-
-#[test]
-fn find_prec_monday_test() {
-    let mut day = NaiveDate::from_ymd(2017, 04, 01);
-    let mut monday = find_prec_monday(day);
-    assert_eq!(monday, NaiveDate::from_ymd(2017, 03, 27));
-
-    day = NaiveDate::from_ymd(2017, 05, 01);
-    monday = find_prec_monday(day);
-    assert_eq!(monday, NaiveDate::from_ymd(2017, 05, 01));
-
-    day = NaiveDate::from_ymd(2017, 03, 01);
-    monday = find_prec_monday(day);
-    assert_eq!(monday, NaiveDate::from_ymd(2017, 02, 27));
-
-    day = NaiveDate::from_ymd(2016, 12, 01);
-    monday = find_prec_monday(day);
-    assert_eq!(monday, NaiveDate::from_ymd(2016, 11, 28));
-}
-
-#[test]
-fn find_last_sunday_test() {
-    let mut sunday = find_last_sunday_for(2017, 04);
-    assert_eq!(sunday, NaiveDate::from_ymd(2017, 04, 30));
-
-    sunday = find_last_sunday_for(2017, 05);
-    assert_eq!(sunday, NaiveDate::from_ymd(2017, 05, 28));
-
-    sunday = find_last_sunday_for(2017, 03);
-    assert_eq!(sunday, NaiveDate::from_ymd(2017, 04, 02));
-
-    sunday = find_last_sunday_for(2016, 12);
-    assert_eq!(sunday, NaiveDate::from_ymd(2017, 01, 01));
-}
+impl<'a> Savable<'a, FlexMonth> for FlexMonth {}
 
 impl FlexMonth {
     pub fn new(year: i32, month: u32, settings: &Settings) -> FlexMonth {
@@ -108,44 +64,149 @@ impl FlexMonth {
             week[count % 7] = FlexDay::new(d, settings);
             count += 1;
             if count % 7 == 0 {
-                weeks.push(FlexWeek::new(week, settings));
+                weeks.push(FlexWeek::new(week));
             }
         }
-        FlexMonth { weeks: weeks, hours: Duration::hours(0), balance: Duration::hours(0) }
+        let balance = weeks.iter().fold(0, |acc, &w| acc + w.hours) -
+            settings.week_goal * (weeks.len() as i64);
+        FlexMonth {
+            weeks: weeks,
+            year: year,
+            month: month,
+            hours: settings.week_goal,
+            balance: balance
+        }
     }
+
+    fn filename(year: i32, month: u32) -> String {
+        format!("./data/{}_{:02}.json", year, month)
+    }
+
+    pub fn save(&self) {
+        let mut file = match File::create(FlexMonth::filename(self.year, self.month)) {
+            Err(why) => panic!("couldn't create file: {}", why.description()),
+            Ok(file) => file,
+        };
+
+        file.write_all(self.to_json().as_bytes()).expect("Unable to write data");
+        file.write("\n".as_bytes()).expect("Unable to write");
+    }
+
+    pub fn load(year: i32, month: u32) -> FlexMonth {
+        match File::open(FlexMonth::filename(year, month)) {
+            Err(_) => Default::default(),
+            Ok(mut file) => {
+                let mut json = String::new();
+                file.read_to_string(&mut json).expect("Failed to read file");
+                FlexMonth::from_json(&json)
+            }
+        }
+    }
+
+
 }
 
-#[test]
-fn create_month_test() {
-    let settings: Settings = Default::default();
-    let mut month = FlexMonth::new(2017, 05, &settings);
+#[cfg(test)]
+mod tests
+{
+    use super::*;
+    use timedata;
 
-    assert_eq!(month.weeks.len(), 4);
-    assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 05, 01)));
-    assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 05, 28)));
+    #[test]
+    fn find_next_monday_test() {
+        let mut day = NaiveDate::from_ymd(2017, 04, 01);
+        let mut first_monday = find_next_monday(day);
+        assert_eq!(first_monday, NaiveDate::from_ymd(2017, 04, 03));
 
-    month = FlexMonth::new(2017, 02, &settings);
-    assert_eq!(month.weeks.len(), 4);
-    assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 01, 30)));
-    assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 02, 26)));
+        day = NaiveDate::from_ymd(2017, 05, 01);
+        first_monday = find_next_monday(day);
+        assert_eq!(first_monday, NaiveDate::from_ymd(2017, 05, 01));
 
-    month = FlexMonth::new(2017, 04, &settings);
-    assert_eq!(month.weeks.len(), 4);
-    assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 04, 03)));
-    assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 04, 30)));
+        day = NaiveDate::from_ymd(2017, 03, 01);
+        first_monday = find_next_monday(day);
+        assert_eq!(first_monday, NaiveDate::from_ymd(2017, 03, 06));
 
-    month = FlexMonth::new(2017, 01, &settings);
-    assert_eq!(month.weeks.len(), 4);
-    assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 01, 02)));
-    assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 01, 29)));
+        day = NaiveDate::from_ymd(2016, 12, 01);
+        first_monday = find_next_monday(day);
+        assert_eq!(first_monday, NaiveDate::from_ymd(2016, 12, 05));
+    }
+    
+    #[test]
+    fn find_prec_monday_test() {
+        let mut day = NaiveDate::from_ymd(2017, 04, 01);
+        let mut monday = find_prec_monday(day);
+        assert_eq!(monday, NaiveDate::from_ymd(2017, 03, 27));
 
-    month = FlexMonth::new(2016, 11, &settings);
-    assert_eq!(month.weeks.len(), 4);
-    assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2016, 10, 31)));
-    assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2016, 11, 27)));
+        day = NaiveDate::from_ymd(2017, 05, 01);
+        monday = find_prec_monday(day);
+        assert_eq!(monday, NaiveDate::from_ymd(2017, 05, 01));
 
-    month = FlexMonth::new(2016, 12, &settings);
-    assert_eq!(month.weeks.len(), 5);
-    assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2016, 11, 28)));
-    assert_eq!(month.weeks[4].days[6].date, Some(NaiveDate::from_ymd(2017, 01, 01)));
+        day = NaiveDate::from_ymd(2017, 03, 01);
+        monday = find_prec_monday(day);
+        assert_eq!(monday, NaiveDate::from_ymd(2017, 02, 27));
+
+        day = NaiveDate::from_ymd(2016, 12, 01);
+        monday = find_prec_monday(day);
+        assert_eq!(monday, NaiveDate::from_ymd(2016, 11, 28));
+    }
+
+    #[test]
+    fn find_last_sunday_test() {
+        let mut sunday = find_last_sunday_for(2017, 04);
+        assert_eq!(sunday, NaiveDate::from_ymd(2017, 04, 30));
+
+        sunday = find_last_sunday_for(2017, 05);
+        assert_eq!(sunday, NaiveDate::from_ymd(2017, 05, 28));
+
+        sunday = find_last_sunday_for(2017, 03);
+        assert_eq!(sunday, NaiveDate::from_ymd(2017, 04, 02));
+
+        sunday = find_last_sunday_for(2016, 12);
+        assert_eq!(sunday, NaiveDate::from_ymd(2017, 01, 01));
+    }
+
+    #[test]
+    fn create_month_test() {
+        let settings: Settings = Default::default();
+        let mut month = FlexMonth::new(2017, 05, &settings);
+
+        assert_eq!(month.weeks.len(), 4);
+        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 05, 01)));
+        assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 05, 28)));
+
+        month = FlexMonth::new(2017, 02, &settings);
+        assert_eq!(month.weeks.len(), 4);
+        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 01, 30)));
+        assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 02, 26)));
+
+        month = FlexMonth::new(2017, 04, &settings);
+        assert_eq!(month.weeks.len(), 4);
+        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 04, 03)));
+        assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 04, 30)));
+
+        month = FlexMonth::new(2017, 01, &settings);
+        assert_eq!(month.weeks.len(), 4);
+        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 01, 02)));
+        assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 01, 29)));
+
+        month = FlexMonth::new(2016, 11, &settings);
+        assert_eq!(month.weeks.len(), 4);
+        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2016, 10, 31)));
+        assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2016, 11, 27)));
+
+        month = FlexMonth::new(2016, 12, &settings);
+        assert_eq!(month.weeks.len(), 5);
+        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2016, 11, 28)));
+        assert_eq!(month.weeks[4].days[6].date, Some(NaiveDate::from_ymd(2017, 01, 01)));
+    }
+    
+    #[test]
+    fn save_load_test() {
+        timedata::create_data_dir();
+        let settings: Settings = Default::default();
+        let m = FlexMonth::new(2017, 05, &settings);
+        m.save();
+        let loaded = FlexMonth::load(2017, 05);
+        assert_eq!(m, loaded);
+    }
 }
