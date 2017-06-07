@@ -6,6 +6,8 @@ extern crate serde;
 extern crate serde_json;
 extern crate chrono;
 extern crate gtk;
+extern crate pango;
+
 #[macro_use]
 extern crate relm;
 extern crate relm_attributes;
@@ -14,12 +16,9 @@ extern crate relm_derive;
 
 use gtk::{
     WindowExt,
-    ButtonExt,
     Inhibit,
     WidgetExt,
     OrientableExt,
-    ContainerExt,
-    Label
 };
 use gtk::Orientation::Vertical;
 use relm::Widget;
@@ -45,11 +44,11 @@ pub enum Msg {
 
 #[widget]
 impl Widget for Win {
-    fn model(model: FlexMonth) -> FlexMonth {
-        model
+    fn model(m: FlexMonth) -> FlexMonth {
+        m.clone()
     }
 
-    fn update(&mut self, event: Msg, model: &mut FlexMonth) {
+    fn update(&mut self, event: Msg) {
         match event {
             Msg::Quit => gtk::main_quit(),
         }
@@ -63,7 +62,11 @@ impl Widget for Win {
             #[name="main_box"]
             gtk::Box {
                 orientation: Vertical,
-                DayWidget(model.weeks[0].days[1]),
+                DayWidget(self.model.weeks[0].days[0]),
+//                DayWidget(self.model.weeks[0].days[1]),
+//                DayWidget(self.model.weeks[0].days[2]),
+//                DayWidget(self.model.weeks[0].days[3]),
+//                DayWidget(self.model.weeks[0].days[4]),
             },
             delete_event(_, _) => (Quit, Inhibit(false)),
         }

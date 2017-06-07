@@ -1,7 +1,7 @@
 use timedata::{FlexWeek, NaiveDateIter, FlexDay};
 use chrono::{NaiveDate, Weekday, Datelike};
 use settings::Settings;
-use std::fs::{File, create_dir_all};
+use std::fs::File;
 
 use std::io::prelude::*;
 use std::error::Error;

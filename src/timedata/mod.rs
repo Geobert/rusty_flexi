@@ -28,7 +28,7 @@ pub fn weekday_to_string(wd: Weekday) -> String {
     match wd {
         Weekday::Mon => "Mon",
         Weekday::Tue => "Tue",
-        Weekday::Wed => "wed",
+        Weekday::Wed => "Wed",
         Weekday::Thu => "Thu",
         Weekday::Fri => "Fri",
         Weekday::Sat => "Sat",
