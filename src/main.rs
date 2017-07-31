@@ -13,6 +13,8 @@ extern crate relm;
 extern crate relm_attributes;
 #[macro_use]
 extern crate relm_derive;
+extern crate futures;
+extern crate futures_glib;
 
 use gtk::{
     WindowExt,

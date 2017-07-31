@@ -3,7 +3,7 @@ extern crate gtk;
 
 use chrono::{Datelike, Duration};
 use timedata::{FlexDay, weekday_to_string};
-use super::hourspin::{HourSpin, DurationSpin};
+use super::hourspin::{ DurationSpin};
 
 use gtk::prelude::*;
 use gtk::{
@@ -84,10 +84,10 @@ impl Widget for DayWidget {
                     None => format!("<span size='medium'>{}</span>", "".to_string())
                 }
             }
-            #[name="start_spin"]
-            HourSpin(self.model.start),
-            #[name="end_spin"]
-            HourSpin(self.model.end),
+//            #[name="start_spin"]
+//            HourSpin(self.model.start),
+//            #[name="end_spin"]
+//            HourSpin(self.model.end),
             #[name="break_spin"]
             DurationSpin(Duration::minutes(self.model.pause)),
             #[name="hours_edt"]
