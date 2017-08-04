@@ -32,16 +32,10 @@ pub struct WeekSchedule {
     pub exceptions: Vec<SettingsDay>
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
-pub struct Holidays {
-    pub year: u32,
-    pub left: u32
-}
-
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Settings {
     pub week_sched: WeekSchedule,
-    pub holidays: Holidays,
+    pub holidays_per_year: f32,
     pub week_goal: i64,
     pub holiday_duration: i64,
     // TODO switch to Duration when chrono supports Serialize/Deserialize
@@ -68,9 +62,9 @@ impl Default for Settings {
                 default: def_day,
                 exceptions: vec![ex_day]
             },
-            holidays: Holidays { year: 26, left: 26 },
+            holidays_per_year: 26.0,
             week_goal: Duration::hours(37).num_minutes(),
-            holiday_duration: Duration::hours(37).num_minutes() / 5
+            holiday_duration: Duration::hours(37).num_minutes() / 5,
         };
         settings
     }
@@ -149,10 +143,7 @@ mod tests {
       }
     ]
   },
-  "holidays": {
-    "year": 26,
-    "left": 26
-  },
+  "holidays_per_year": 26.0,
   "week_goal": 2220,
   "holiday_duration": 444
 }"#

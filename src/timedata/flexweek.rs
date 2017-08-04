@@ -1,7 +1,9 @@
 use chrono::Weekday;
 use timedata::FlexDay;
+use timedata::DayStatus;
 use std::iter::Iterator;
 use std::default::Default;
+use std::fmt::{Display, Result, Formatter};
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct FlexWeek
@@ -10,6 +12,17 @@ pub struct FlexWeek
     pub hours: i64
 }
 
+impl Display for FlexWeek {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        for d in &self.days {
+            if d.status != DayStatus::Weekend {
+                writeln!(f, "{}", d).expect("Failed to write FlexWeek to Display");
+            }
+        }
+        writeln!(f, "{:->40} {:02}:{:02}", " Total =",
+                 self.hours / 60, self.hours - (self.hours / 60) * 60)
+    }
+}
 
 impl FlexWeek {
     pub fn new(days: [FlexDay; 7]) -> FlexWeek {
@@ -27,6 +40,11 @@ impl FlexWeek {
     pub fn update(&mut self) {
         self.hours = self.total_minutes();
     }
+
+    pub fn total_str(&self) -> String {
+        format!("{:->40} {:02}:{:02}", " Total =",
+                self.hours / 60, self.hours - (self.hours / 60) * 60)
+    }
 }
 
 impl Default for FlexWeek {
@@ -36,7 +54,7 @@ impl Default for FlexWeek {
             hours: 0,
         };
         let mut wd = Weekday::Mon;
-        for day in &mut(w.days) {
+        for day in &mut (w.days) {
             day.set_weekday(wd);
             wd = wd.succ();
         }

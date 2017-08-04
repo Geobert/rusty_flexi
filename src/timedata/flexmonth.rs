@@ -2,7 +2,7 @@ use timedata::{FlexWeek, NaiveDateIter, FlexDay};
 use chrono::{NaiveDate, Weekday, Datelike};
 use settings::Settings;
 use std::fs::File;
-
+use std::fmt::{Display, Result, Formatter};
 use std::io::prelude::*;
 use std::error::Error;
 use savable::Savable;
@@ -15,6 +15,23 @@ pub struct FlexMonth {
     pub hours: i64,
     pub balance: i64
     // TODO switch i64 to Duration when chrono supports Serialize/Deserialize
+}
+
+impl Display for FlexMonth {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        for w in &self.weeks {
+            writeln!(f, "{}", w).expect("Failed to write FlexMonth to Display");
+        }
+        write!(f, "")
+    }
+}
+
+pub fn next_month(year: i32, month: u32) -> (i32, u32) {
+    if month == 12 { (year + 1, 1) } else { (year, month + 1) }
+}
+
+pub fn prev_month(year: i32, month: u32) -> (i32, u32) {
+    if month == 1 { (year - 1, 12) } else { (year, month - 1) }
 }
 
 fn find_next_monday(day: NaiveDate) -> NaiveDate {
@@ -31,7 +48,7 @@ fn find_prec_monday(day: NaiveDate) -> NaiveDate {
     }
 }
 
-fn find_first_monday_of_grid(year: i32, month: u32) -> NaiveDate {
+pub fn find_first_monday_of_grid(year: i32, month: u32) -> NaiveDate {
     let first_day = NaiveDate::from_ymd(year, month, 1);
     match first_day.weekday() {
         Weekday::Mon => first_day,
@@ -40,8 +57,8 @@ fn find_first_monday_of_grid(year: i32, month: u32) -> NaiveDate {
     }
 }
 
-fn find_last_sunday_for(year: i32, month: u32) -> NaiveDate {
-    let (y, m) = if month == 12 { (year + 1, 1) } else { (year, month + 1) };
+pub fn find_last_sunday_for(year: i32, month: u32) -> NaiveDate {
+    let (y, m) = next_month(year, month);
     let first_day_next_month = NaiveDate::from_ymd(y, m, 1);
     match first_day_next_month.weekday() {
         Weekday::Sun => first_day_next_month,
@@ -92,9 +109,9 @@ impl FlexMonth {
         file.write("\n".as_bytes()).expect("Unable to write");
     }
 
-    pub fn load(year: i32, month: u32) -> FlexMonth {
+    pub fn load(year: i32, month: u32, settings: &Settings) -> FlexMonth {
         match File::open(FlexMonth::filename(year, month)) {
-            Err(_) => Default::default(),
+            Err(_) => FlexMonth::new(year, month, &settings),
             Ok(mut file) => {
                 let mut json = String::new();
                 file.read_to_string(&mut json).expect("Failed to read file");
@@ -103,7 +120,13 @@ impl FlexMonth {
         }
     }
 
-
+    pub fn get_week_with_day(&self, d: u32) -> Option<(&FlexDay, &FlexWeek)> {
+        for w in &self.weeks {
+            if let Some(d) = w.days.iter().find(|&&day| if let Some(date) = day.date
+                { date.day() == d } else { false }) { return Some((d, w)); }
+        }
+        return None;
+    }
 }
 
 #[cfg(test)]
@@ -111,6 +134,14 @@ mod tests
 {
     use super::*;
     use timedata;
+
+    #[test]
+    fn get_week_with_day_test() {
+        let settings: Settings = Default::default();
+        let m = FlexMonth::new(2017, 05, &settings);
+        let w = m.get_week_with_day(10).unwrap();
+        assert_eq!(w.1.days[0].date.unwrap().day(), 8);
+    }
 
     #[test]
     fn find_next_monday_test() {
@@ -130,7 +161,7 @@ mod tests
         first_monday = find_next_monday(day);
         assert_eq!(first_monday, NaiveDate::from_ymd(2016, 12, 05));
     }
-    
+
     #[test]
     fn find_prec_monday_test() {
         let mut day = NaiveDate::from_ymd(2017, 04, 01);
@@ -199,14 +230,14 @@ mod tests
         assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2016, 11, 28)));
         assert_eq!(month.weeks[4].days[6].date, Some(NaiveDate::from_ymd(2017, 01, 01)));
     }
-    
+
     #[test]
     fn save_load_test() {
         timedata::create_data_dir();
         let settings: Settings = Default::default();
         let m = FlexMonth::new(2017, 05, &settings);
         m.save();
-        let loaded = FlexMonth::load(2017, 05);
+        let loaded = FlexMonth::load(2017, 05, &settings);
         assert_eq!(m, loaded);
     }
 }
