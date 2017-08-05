@@ -4,11 +4,11 @@ use std::error::Error;
 use settings::Settings;
 use savable::Savable;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct DaysOff {
     year: i32,
-    holidays_left: f32,
-    sick_days_taken: f32,
+    pub holidays_left: f32,
+    pub sick_days_taken: f32,
 }
 
 impl<'a> Savable<'a, DaysOff> for DaysOff {}
@@ -56,7 +56,7 @@ mod tests
     #[test]
     fn load_save_load() {
         let s = Settings::default();
-        let mut d1 = DaysOff::load(2017, &s);
+        let mut d1 = DaysOff::new(2017, &s);
         assert_eq!(d1.year, 2017);
         assert_eq!(d1.sick_days_taken, 0.0);
         assert_eq!(d1.holidays_left, 26.0);

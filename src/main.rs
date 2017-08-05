@@ -13,9 +13,6 @@ mod curses;
 use settings::Settings;
 use pancurses::*;
 use curses::*;
-use timedata::{FlexDay, FlexMonth, DaysOff};
-use chrono::Datelike;
-
 
 fn main() {
     timedata::create_data_dir();
@@ -26,7 +23,6 @@ fn main() {
     cbreak();
     let curses = Curses::new(&window);
     let today = chrono::Local::today().naive_utc();
-    let days_off = DaysOff::load(today.year(), &settings);
     let mut navigator = Navigator::new(today, &curses, &settings);
     navigator.init();
     let mut done = false;

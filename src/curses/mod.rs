@@ -3,7 +3,7 @@ pub use self::navigator::Navigator;
 mod navigator;
 
 use pancurses::*;
-use timedata::{FlexWeek, FlexDay, FlexMonth, month_to_string, weekday_to_string};
+use timedata::{FlexWeek, FlexDay, FlexMonth, DaysOff, DayStatus, month_to_string, weekday_to_string};
 use settings::Settings;
 use chrono::{Datelike, NaiveDate};
 
@@ -18,7 +18,7 @@ impl<'a> Curses<'a> {
         Curses {
             main_win: window,
             week_win: window.subwin(11, 48, 1, 2).expect("Week window creation failed"),
-            stat_win: window.subwin(11, 25, 1, 51).expect("Status window creation failed")
+            stat_win: window.subwin(11, 25, 1, 53).expect("Status window creation failed")
         }
     }
 
@@ -39,7 +39,14 @@ impl<'a> Curses<'a> {
                 self.week_win.printw(&d.to_string());
                 self.week_win.attroff(A_BOLD);
             } else {
-                self.week_win.printw(&d.to_string());
+                match d.status {
+                    DayStatus::Weekend | DayStatus::Sick | DayStatus::Half | DayStatus::Holiday => {
+                        self.week_win.attron(A_DIM);
+                        self.week_win.printw(&d.to_string());
+                        self.week_win.attroff(A_DIM);
+                    }
+                    _ => { self.week_win.printw(&d.to_string()); }
+                };
             }
             y += 1;
             self.week_win.mv(y, 0);
@@ -107,10 +114,27 @@ impl<'a> Curses<'a> {
         }
     }
 
-    pub fn print_status(&self, settings: &Settings, m: &FlexMonth) {
-        let start_y = 7;
-        self.stat_win.mvprintw(start_y, 0, &format!("Month balance: {:02}:{:02}", m.balance / 60, m.balance - (m.balance / 60) * 60));
-//        self.stat_win.mvprintw(start_y + 1, 0, &format!("Holidays left: {}", settings.holidays.left));
-        //        self.stat_win.mvprintw(start_y + 2, 0, &format!("Sick days: {}", settings.sick_days));
+    pub fn print_status(&self, settings: &Settings, m: &FlexMonth, off: &DaysOff) {
+        let start_y = 0;
+        self.stat_win.attron(A_UNDERLINE);
+        self.stat_win.mvprintw(start_y, 0, &format!("{} statistics", month_to_string(m.month)));
+        self.stat_win.attroff(A_UNDERLINE);
+        let goal = settings.week_goal * m.weeks.len() as i64;
+        let total = m.total_minute();
+        self.stat_win.mvprintw(start_y + 2, 0,
+                               &format!("Target:{: >4}{:02}:{:02}", "",
+                                        goal / 60, goal - (goal / 60) * 60));
+        self.stat_win.mvprintw(start_y + 3, 0,
+                               &format!("Total:{: >5}{:02}:{:02}", "",
+                                        total / 60, total - (total / 60) * 60));
+        self.stat_win.mvprintw(start_y + 4, 0,
+                               &format!("Balance:{: >4}{:02}:{:02}", "",
+                                        m.balance / 60, m.balance - (m.balance / 60) * 60));
+        self.stat_win.attron(A_UNDERLINE);
+        self.stat_win.mvprintw(start_y + 6, 0, &format!("Days off ({})", m.year));
+        self.stat_win.attroff(A_UNDERLINE);
+        self.stat_win.mvprintw(start_y + 8, 0, &format!("Holidays left: {}",
+                                                        off.holidays_left));
+        self.stat_win.mvprintw(start_y + 9, 0, &format!("Sick days: {: >6}", off.sick_days_taken));
     }
 }

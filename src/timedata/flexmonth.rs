@@ -12,7 +12,7 @@ pub struct FlexMonth {
     pub weeks: Vec<FlexWeek>,
     pub year: i32,
     pub month: u32,
-    pub hours: i64,
+    pub one_week_goal: i64,
     pub balance: i64
     // TODO switch i64 to Duration when chrono supports Serialize/Deserialize
 }
@@ -90,7 +90,7 @@ impl FlexMonth {
             weeks: weeks,
             year: year,
             month: month,
-            hours: settings.week_goal,
+            one_week_goal: settings.week_goal,
             balance: balance
         }
     }
@@ -123,9 +123,13 @@ impl FlexMonth {
     pub fn get_week_with_day(&self, d: u32) -> Option<(&FlexDay, &FlexWeek)> {
         for w in &self.weeks {
             if let Some(d) = w.days.iter().find(|&&day| if let Some(date) = day.date
-                { date.day() == d } else { false }) { return Some((d, w)); }
+                { date.day() == d } else { false }) { return Some((&d, &w)); }
         }
         return None;
+    }
+
+    pub fn total_minute(&self) -> i64 {
+        self.weeks.iter().fold(0, |acc, &w| acc + w.hours)
     }
 }
 
