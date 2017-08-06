@@ -8,8 +8,8 @@ pub static mut HOLIDAY_DURATION: i64 = 0;
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub enum DayStatus {
     Worked,
-    Half,
     Holiday,
+    Half,
     Weekend,
     Sick
 }
@@ -131,16 +131,24 @@ impl FlexDay {
         }
     }
 
-    // @formatter:off
+    pub fn status_str(&self) -> String {
+        match self.status {
+            DayStatus::Worked => "N",
+            DayStatus::Holiday => "H",
+            DayStatus::Half => "h",
+            DayStatus::Sick => "S",
+            DayStatus::Weekend => "W",
+        }.to_string()
+    }
+
     pub fn total_minutes(&self) -> i64 {
         match self.status {
-            DayStatus::Worked => self.end.signed_duration_since(self.start).num_minutes() - self.pause,
+            DayStatus::Worked | DayStatus::Half =>
+                self.end.signed_duration_since(self.start).num_minutes() - self.pause,
             DayStatus::Weekend => 0,
-            DayStatus::Holiday => unsafe { HOLIDAY_DURATION },
-            _ => 0,
+            DayStatus::Holiday | DayStatus::Sick => unsafe { HOLIDAY_DURATION },
         }
     }
-    // @formatter:on
 
     fn day_status_for(wd: Weekday) -> DayStatus {
         match wd {

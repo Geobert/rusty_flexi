@@ -8,8 +8,7 @@ use std::fmt::{Display, Result, Formatter};
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct FlexWeek
 {
-    pub days: [FlexDay; 7],
-    pub hours: i64
+    pub days: [FlexDay; 7]
 }
 
 impl Display for FlexWeek {
@@ -19,14 +18,15 @@ impl Display for FlexWeek {
                 writeln!(f, "{}", d).expect("Failed to write FlexWeek to Display");
             }
         }
+        let hours = self.total_minutes();
         writeln!(f, "{:->40} {:02}:{:02}", " Total =",
-                 self.hours / 60, self.hours - (self.hours / 60) * 60)
+                 hours / 60, hours - (hours / 60) * 60)
     }
 }
 
 impl FlexWeek {
     pub fn new(days: [FlexDay; 7]) -> FlexWeek {
-        FlexWeek { days: days, hours: FlexWeek::total_minutes_of(days) }
+        FlexWeek { days: days }//, hours: FlexWeek::total_minutes_of(days) }
     }
 
     fn total_minutes_of(days: [FlexDay; 7]) -> i64 {
@@ -37,13 +37,14 @@ impl FlexWeek {
         FlexWeek::total_minutes_of(self.days)
     }
 
-    pub fn update(&mut self) {
-        self.hours = self.total_minutes();
-    }
+    //    pub fn update(&mut self) {
+    //    self.hours = self.total_minutes();
+    //}
 
     pub fn total_str(&self) -> String {
+        let hours = self.total_minutes();
         format!("{:->40} {:02}:{:02}", " Total =",
-                self.hours / 60, self.hours - (self.hours / 60) * 60)
+                hours / 60, hours - (hours / 60) * 60)
     }
 }
 
@@ -51,7 +52,6 @@ impl Default for FlexWeek {
     fn default() -> FlexWeek {
         let mut w = FlexWeek {
             days: [Default::default(); 7],
-            hours: 0,
         };
         let mut wd = Weekday::Mon;
         for day in &mut (w.days) {
@@ -69,7 +69,7 @@ mod tests
 
     #[test]
     fn total_minutes_test() {
-        let mut w = FlexWeek { days: [Default::default(); 7], hours: 0 };
+        let mut w = FlexWeek { days: [Default::default(); 7] };
         assert_eq!(w.total_minutes(), (8 * 60 - 30) * 7);
 
         w = Default::default();

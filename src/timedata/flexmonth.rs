@@ -84,7 +84,7 @@ impl FlexMonth {
                 weeks.push(FlexWeek::new(week));
             }
         }
-        let balance = weeks.iter().fold(0, |acc, &w| acc + w.hours) -
+        let balance = weeks.iter().fold(0, |acc, &w| acc + w.total_minutes()) -
             settings.week_goal * (weeks.len() as i64);
         FlexMonth {
             weeks: weeks,
@@ -122,14 +122,28 @@ impl FlexMonth {
 
     pub fn get_week_with_day(&self, d: u32) -> Option<(&FlexDay, &FlexWeek)> {
         for w in &self.weeks {
-            if let Some(d) = w.days.iter().find(|&&day| if let Some(date) = day.date
-                { date.day() == d } else { false }) { return Some((&d, &w)); }
+            if let Some(day) = w.days.iter().find(|&&day| if let Some(date) = day.date
+                { date.day() == d } else { false }) { return Some((&day, &w)); }
         }
         return None;
     }
 
     pub fn total_minute(&self) -> i64 {
-        self.weeks.iter().fold(0, |acc, &w| acc + w.hours)
+        self.weeks.iter().fold(0, |acc, &w| acc + w.total_minutes())
+    }
+
+    pub fn update_balance(&mut self) {
+        self.balance = self.total_minute() - self.one_week_goal * (self.weeks.len() as i64);
+    }
+
+    pub fn update_day(&mut self, d: FlexDay) {
+        for w in &mut self.weeks {
+            for i in 0..w.days.len() {
+                if w.days[i].date == d.date {
+                    w.days[i] = d;
+                }
+            }
+        }
     }
 }
 

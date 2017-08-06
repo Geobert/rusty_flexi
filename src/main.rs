@@ -39,10 +39,7 @@ fn main() {
                     navigator.change_month(true);
                 }
                 Input::Character('\n') => {
-                    let d = navigator.get_current_day();
-                    curses.print_prompt(&d);
-                    curses.manage_edit(&d, &navigator.current_month);
-                    curses.delete_prompt();
+                    navigator.manage_edit();
                 }
                 _ => {}
             },
