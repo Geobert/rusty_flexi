@@ -33,7 +33,7 @@ impl<'a> Navigator<'a> {
     }
 
     pub fn init(&mut self) {
-        self.curses.print_week_header(self.current_day.month());
+        self.curses.print_week_header(self.current_day.month(), self.current_day.year());
         self.curses.print_status(&self.settings, &self.current_month, &self.days_off);
         self.current_day = self.select_day(self.current_day);
     }
@@ -78,11 +78,12 @@ impl<'a> Navigator<'a> {
             prev_month(self.current_month.year, self.current_month.month)
         };
         self.current_month = FlexMonth::load(y, m, &self.settings);
-        self.curses.print_week_header(m);
+        self.curses.print_week_header(m, y);
         self.select_day(self.current_day);
+        self.curses.print_status(&self.settings, &self.current_month, &self.days_off);
     }
 
-    fn edit_status(d: &mut FlexDay, up: bool) {
+    fn edit_status(&self, d: &mut FlexDay, up: bool) {
         let wd = d.weekday().expect("should have weekday");
         d.status = if up {
             match d.status {
@@ -105,23 +106,23 @@ impl<'a> Navigator<'a> {
         }
     }
 
-    fn edit_hour(time: NaiveTime, up: bool) -> NaiveTime {
+    fn edit_hour(&self, time: NaiveTime, up: bool) -> NaiveTime {
         let offset = Duration::hours(1);
         if up { time.add(offset) } else { time.sub(offset) }
     }
 
-    fn edit_minute(time: NaiveTime, up: bool) -> NaiveTime {
+    fn edit_minute(&self, time: NaiveTime, up: bool) -> NaiveTime {
         let offset = Duration::minutes(1);
         if up { time.add(offset) } else { time.sub(offset) }
     }
 
     fn manage_key_up_down(&self, cur_field: usize, up: bool, mut d: &mut FlexDay) {
         match cur_field {
-            0 => { Navigator::edit_status(&mut d, up); },
-            1 => { d.start = Navigator::edit_hour(d.start, up); },
-            2 => { d.start = Navigator::edit_minute(d.start, up); }
-            3 => { d.end = Navigator::edit_hour(d.end, up); },
-            4 => { d.end = Navigator::edit_minute(d.end, up); },
+            0 => { self.edit_status(&mut d, up); },
+            1 => { d.start = self.edit_hour(d.start, up); },
+            2 => { d.start = self.edit_minute(d.start, up); }
+            3 => { d.end = self.edit_hour(d.end, up); },
+            4 => { d.end = self.edit_minute(d.end, up); },
             5 => {},
             6 => {},
             _ => { unreachable!() },
@@ -155,6 +156,7 @@ impl<'a> Navigator<'a> {
 
         let mut done = false;
         while !done {
+            let old_status = d.status;
             match self.curses.getch() {
                 Some(c) => {
                     match c {
@@ -187,19 +189,48 @@ impl<'a> Navigator<'a> {
                 }
                 None => {}
             }
-            let idx = match d.weekday().expect("weekday not set, impossible") {
-                Weekday::Mon => 0,
-                Weekday::Tue => 1,
-                Weekday::Wed => 2,
-                Weekday::Thu => 3,
-                Weekday::Fri => 4,
-                Weekday::Sat => 5,
-                Weekday::Sun => 6,
-            };
-            // todo update data and save
+            if old_status != d.status {
+                match old_status {
+                    DayStatus::Worked => match d.status {
+                        DayStatus::Holiday => self.days_off.holidays_left -= 1.0,
+                        DayStatus::Half => self.days_off.holidays_left -= 0.5,
+                        DayStatus::Sick => self.days_off.sick_days_taken += 1.0,
+                        DayStatus::Weekend | DayStatus::Worked => {},
+                    },
+                    DayStatus::Holiday => match d.status {
+                        DayStatus::Worked | DayStatus::Weekend => self.days_off.holidays_left += 1.0,
+                        DayStatus::Half => self.days_off.holidays_left += 0.5,
+                        DayStatus::Sick => {
+                            self.days_off.holidays_left += 1.0;
+                            self.days_off.sick_days_taken += 1.0;
+                        },
+                        DayStatus::Holiday => {}
+                    },
+                    DayStatus::Half => match d.status {
+                        DayStatus::Worked | DayStatus::Weekend => self.days_off.holidays_left += 0.5,
+                        DayStatus::Holiday => self.days_off.holidays_left -= 0.5,
+                        DayStatus::Sick => {
+                            self.days_off.holidays_left += 0.5;
+                            self.days_off.sick_days_taken += 1.0;
+                        },
+                        DayStatus::Half => {},
+                    },
+                    DayStatus::Sick => {
+                        self.days_off.sick_days_taken -= 1.0;
+                        match d.status {
+                            DayStatus::Half => self.days_off.holidays_left -= 0.5,
+                            DayStatus::Holiday => self.days_off.holidays_left -= 1.0,
+                            DayStatus::Sick => {},
+                            DayStatus::Worked | DayStatus::Weekend => {}
+                        }
+                    },
+                    DayStatus::Weekend => {},
+                }
+            }
             self.current_month.update_day(d);
             self.current_month.update_balance();
             self.current_month.save();
+            self.days_off.save();
             self.curses.print_status(&self.settings, &self.current_month, &self.days_off);
         }
         // remove any reverse attr

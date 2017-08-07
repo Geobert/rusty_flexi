@@ -35,11 +35,12 @@ impl<'a> Curses<'a> {
         ch
     }
 
-    pub fn print_week_header(&self, month: u32) {
+    pub fn print_week_header(&self, month: u32, year: i32) {
         let month_str = month_to_string(month);
         self.week_win.mv(0, 0);
         self.week_win.clrtoeol();
-        self.week_win.mvprintw(0, (48 / 2 - month_str.len() / 2) as i32, &format!("{}", month_str));
+        self.week_win.mvprintw(0, (48 / 2 - month_str.len() / 2) as i32 - 3,
+                               &format!("{} {}", month_str, year));
     }
 
     pub fn print_week(&self, week: &FlexWeek, today: &NaiveDate) {
@@ -175,6 +176,7 @@ impl<'a> Curses<'a> {
 
     pub fn print_status(&self, settings: &Settings, m: &FlexMonth, off: &DaysOff) {
         let start_y = 0;
+        self.stat_win.clear();
         self.stat_win.attron(A_UNDERLINE);
         self.stat_win.mvprintw(start_y, 0, &format!("{} statistics", month_to_string(m.month)));
         self.stat_win.attroff(A_UNDERLINE);
