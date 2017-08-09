@@ -136,14 +136,16 @@ impl FlexMonth {
         self.balance = self.total_minute() - self.one_week_goal * (self.weeks.len() as i64);
     }
 
-    pub fn update_day(&mut self, d: FlexDay) {
+    pub fn update_day(&mut self, d: FlexDay) -> Option<FlexWeek> {
         for w in &mut self.weeks {
             for i in 0..w.days.len() {
                 if w.days[i].date == d.date {
                     w.days[i] = d;
+                    return Some(w.clone());
                 }
             }
         }
+        None
     }
 }
 

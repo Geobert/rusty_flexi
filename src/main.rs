@@ -21,6 +21,11 @@ fn main() {
     window.keypad(true);
     noecho();
     cbreak();
+    start_color();
+    curs_set(0);
+
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+
     let curses = Curses::new(&window);
     let today = chrono::Local::today().naive_utc();
     let mut navigator = Navigator::new(today, &curses, &settings);
@@ -29,18 +34,16 @@ fn main() {
     while !done {
         match window.getch() {
             Some(c) => match c {
-                Input::Character('q') => done = true,
-                Input::KeyUp => { navigator.select_prev_day(); }
-                Input::KeyDown => { navigator.select_next_day(); }
-                Input::KeyPPage => {
-                    navigator.change_month(false);
-                }
-                Input::KeyNPage => {
-                    navigator.change_month(true);
-                }
-                Input::Character('\n') => {
+                Input::Character('q') | Input::Character('\x1B') => done = true,
+                Input::KeyUp => { navigator.select_prev_day(); },
+                Input::KeyDown => { navigator.select_next_day(); },
+                Input::KeyPPage => { navigator.change_month(false); },
+                Input::KeyNPage => { navigator.change_month(true); },
+                Input::Character('\n') | Input::KeyRight | Input::KeyLeft => {
                     navigator.manage_edit();
-                }
+                },
+                Input::Character(c) if c == 'h' || c == 's' => { navigator.change_status(c); },
+                Input::Character('o') | Input::Character('s') => {}
                 _ => {}
             },
             None => {}

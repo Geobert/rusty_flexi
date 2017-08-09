@@ -36,6 +36,7 @@ pub struct WeekSchedule {
 pub struct Settings {
     pub week_sched: WeekSchedule,
     pub holidays_per_year: f32,
+    pub sickdays_per_year: f32,
     pub week_goal: i64,
     pub holiday_duration: i64,
     // TODO switch to Duration when chrono supports Serialize/Deserialize
@@ -63,6 +64,7 @@ impl Default for Settings {
                 exceptions: vec![ex_day]
             },
             holidays_per_year: 26.0,
+            sickdays_per_year: 30.0,
             week_goal: Duration::hours(37).num_minutes(),
             holiday_duration: Duration::hours(37).num_minutes() / 5,
         };

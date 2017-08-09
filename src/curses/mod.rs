@@ -3,9 +3,9 @@ pub use self::navigator::Navigator;
 mod navigator;
 
 use pancurses::*;
-use timedata::{FlexWeek, FlexDay, FlexMonth, DaysOff, DayStatus, month_to_string, weekday_to_string};
+use timedata::{FlexWeek, FlexDay, FlexMonth, DaysOff, DayStatus, month_to_string};
 use settings::Settings;
-use chrono::{Datelike, NaiveDate, NaiveTime, Weekday, Timelike};
+use chrono::{NaiveDate, Timelike};
 
 pub struct Curses<'a> {
     pub main_win: &'a Window,
@@ -39,7 +39,7 @@ impl<'a> Curses<'a> {
         let month_str = month_to_string(month);
         self.week_win.mv(0, 0);
         self.week_win.clrtoeol();
-        self.week_win.mvprintw(0, (48 / 2 - month_str.len() / 2) as i32 - 3,
+        self.week_win.mvprintw(0, (48 / 2 - (month_str.len() + 5) / 2) as i32, // +5 for space + year
                                &format!("{} {}", month_str, year));
     }
 
@@ -47,7 +47,18 @@ impl<'a> Curses<'a> {
         let mut y = 2;
         self.week_win.mv(y, 0);
         for d in &week.days {
-            if d.date.expect("No date in day").day() == today.day() {
+            let day_is_today = d.date.expect("No date in day") == *today;
+            if d.total_minutes() < 0 {
+                if day_is_today {
+                    self.week_win.attron(A_BOLD);
+                }
+                self.week_win.attron(COLOR_PAIR(1));
+                self.week_win.printw(&d.to_string());
+                self.week_win.attroff(COLOR_PAIR(1));
+                if day_is_today {
+                    self.week_win.attroff(A_BOLD);
+                }
+            } else if day_is_today {
                 self.print_selected_day(&d);
             } else {
                 match d.status {
@@ -62,35 +73,19 @@ impl<'a> Curses<'a> {
             y += 1;
             self.week_win.mv(y, 0);
         }
-        self.week_win.printw(&week.total_str());
-        self.week_win.refresh();
     }
 
-
-    //    pub fn print_prompt(&self, day: &FlexDay) {
-    //        self.main_win.mvprintw(self.week_win.get_max_y() + 1, 2,
-    //                               &format!("Editing \"{} {:02}/{:02}\" (\"?\" for help).",
-    //                                        match day.weekday() {
-    //                                            Some(wd) => weekday_to_string(wd),
-    //                                            None => "???".to_string()
-    //                                        },
-    //                                        match day.date {
-    //                                            Some(date) => date.day(),
-    //                                            None => 0
-    //                                        },
-    //                                        match day.date {
-    //                                            Some(date) => date.month(),
-    //                                            None => 0
-    //                                        }));
-    //        self.main_win.mvprintw(self.week_win.get_max_y() + 2, 2, "> ");
-    //    }
-    //
-    //    pub fn delete_prompt(&self) {
-    //        self.main_win.mv(self.week_win.get_max_y() + 1, 2);
-    //        self.main_win.clrtoeol();
-    //        self.main_win.mv(self.week_win.get_max_y() + 2, 2);
-    //        self.main_win.clrtoeol();
-    //    }
+    pub fn print_week_total(&self, week: &FlexWeek, below_minimum: bool) {
+        self.week_win.mv(9, 0);
+        if below_minimum {
+            self.week_win.attron(COLOR_PAIR(1));
+        }
+        self.week_win.printw(&week.total_str());
+        if below_minimum {
+            self.week_win.attroff(COLOR_PAIR(1));
+        }
+        self.week_win.refresh();
+    }
 
     fn print_time(&self, time: u32, status: DayStatus) {
         match status {
@@ -140,40 +135,6 @@ impl<'a> Curses<'a> {
         self.week_win.refresh();
     }
 
-
-    //    pub fn manage_edit_with_prompt(&self, d: &FlexDay, m: &FlexMonth) {
-    //        let mut done = false;
-    //
-    //        while !done {
-    //            self.main_win.nodelay(true);
-    //            half_delay(50);
-    //            let ch = self.main_win.getch();
-    //            nocbreak(); // Reset the halfdelay() value
-    //            cbreak();
-    //
-    //            match ch {
-    //                Some(c) => {
-    //                    match c {
-    //                        Input::Character('\u{8}') => {
-    //                            if self.main_win.get_cur_x() > 4 {
-    //                                self.main_win.mv(self.main_win.get_cur_y(),
-    //                                                 self.main_win.get_cur_x() - 1);
-    //                                self.main_win.delch();
-    //                            }
-    //                        }
-    //                        Input::Character('\x1B') => done = true,
-    //                        Input::Character(c) => {
-    //                            println!("{:?}", c);
-    //                            self.main_win.addch(c);
-    //                        }
-    //                        _ => { println!("unknown") }
-    //                    }
-    //                }
-    //                None => {}
-    //            }
-    //        }
-    //    }
-
     pub fn print_status(&self, settings: &Settings, m: &FlexMonth, off: &DaysOff) {
         let start_y = 0;
         self.stat_win.clear();
@@ -182,6 +143,7 @@ impl<'a> Curses<'a> {
         self.stat_win.attroff(A_UNDERLINE);
         let goal = settings.week_goal * m.weeks.len() as i64;
         let total = m.total_minute();
+        let sign = if m.balance < 0 { "-" } else { " " };
         self.stat_win.mvprintw(start_y + 2, 0,
                                &format!("Target:{: >4}{:02}:{:02}", "",
                                         goal / 60, goal - (goal / 60) * 60));
@@ -189,14 +151,22 @@ impl<'a> Curses<'a> {
                                &format!("Total:{: >5}{:02}:{:02}", "",
                                         total / 60, total - (total / 60) * 60));
         self.stat_win.mvprintw(start_y + 4, 0,
-                               &format!("Balance:{: >4}{:02}:{:02}", "",
-                                        m.balance / 60, m.balance - (m.balance / 60) * 60));
+                               &format!("Balance:  "));
+        if m.balance < 0 {
+            self.stat_win.attron(COLOR_PAIR(1));
+        }
+        self.stat_win.mvprintw(start_y + 4, 11,
+                               &format!("{}{:02}:{:02}", sign, (m.balance / 60).abs(),
+                                        (m.balance - (m.balance / 60) * 60).abs()));
+        if m.balance < 0 {
+            self.stat_win.attroff(COLOR_PAIR(1));
+        }
         self.stat_win.attron(A_UNDERLINE);
         self.stat_win.mvprintw(start_y + 6, 0, &format!("Days off ({})", m.year));
         self.stat_win.attroff(A_UNDERLINE);
         self.stat_win.mvprintw(start_y + 8, 0, &format!("Holidays left: {}",
                                                         off.holidays_left));
-        self.stat_win.mvprintw(start_y + 9, 0, &format!("Sick days: {: >6}", off.sick_days_taken));
+        self.stat_win.mvprintw(start_y + 9, 0, &format!("Sickdays left: {}", off.sick_days_left));
         self.stat_win.refresh();
     }
 }

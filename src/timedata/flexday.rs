@@ -48,32 +48,59 @@ impl Display for FlexDay {
             DayStatus::Worked | DayStatus::Half => {
                 let pause = Duration::minutes(self.pause);
                 let total = Duration::minutes(self.total_minutes());
-                write!(f, "{}   {} {:02}/{:02}   {:02}:{:02} -> {:02}:{:02} - {:02}:{:02} = {:02}:{:02}",
-                       if self.status == DayStatus::Worked {
-                           "N"
-                       } else {
-                           "h"
-                       },
-                       match self.weekday {
-                           Some(wd) => super::weekday_to_string(wd),
-                           None => "???".to_string()
-                       },
-                       match self.date {
-                           Some(date) => date.day(),
-                           None => 0u32
-                       },
-                       match self.date {
-                           Some(date) => date.month(),
-                           None => 0u32
-                       },
-                       self.start.hour(),
-                       self.start.minute(),
-                       self.end.hour(),
-                       self.end.minute(),
-                       pause.num_hours(),
-                       pause.num_minutes() - (pause.num_hours() * 60),
-                       total.num_hours(),
-                       total.num_minutes() - (total.num_hours() * 60))
+                if total.num_minutes() >= 0 {
+                    write!(f, "{}   {} {:02}/{:02}   {:02}:{:02} -> {:02}:{:02} - {:02}:{:02} = {:02}:{:02}",
+                           if self.status == DayStatus::Worked {
+                               "N"
+                           } else {
+                               "h"
+                           },
+                           match self.weekday {
+                               Some(wd) => super::weekday_to_string(wd),
+                               None => "???".to_string()
+                           },
+                           match self.date {
+                               Some(date) => date.day(),
+                               None => 0u32
+                           },
+                           match self.date {
+                               Some(date) => date.month(),
+                               None => 0u32
+                           },
+                           self.start.hour(),
+                           self.start.minute(),
+                           self.end.hour(),
+                           self.end.minute(),
+                           pause.num_hours(),
+                           pause.num_minutes() - (pause.num_hours() * 60),
+                           total.num_hours().abs(),
+                           total.num_minutes().abs() - (total.num_hours().abs() * 60))
+                } else {
+                    write!(f, "{}   {} {:02}/{:02}   {:02}:{:02} -> {:02}:{:02} - {:02}:{:02} = ??:??",
+                           if self.status == DayStatus::Worked {
+                               "N"
+                           } else {
+                               "h"
+                           },
+                           match self.weekday {
+                               Some(wd) => super::weekday_to_string(wd),
+                               None => "???".to_string()
+                           },
+                           match self.date {
+                               Some(date) => date.day(),
+                               None => 0u32
+                           },
+                           match self.date {
+                               Some(date) => date.month(),
+                               None => 0u32
+                           },
+                           self.start.hour(),
+                           self.start.minute(),
+                           self.end.hour(),
+                           self.end.minute(),
+                           pause.num_hours(),
+                           pause.num_minutes() - (pause.num_hours() * 60))
+                }
             },
             DayStatus::Weekend => {
                 write!(f, "{}   {} {:02}/{:02}   --:-- -> --:-- - --:-- = --:--",
