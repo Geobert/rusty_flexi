@@ -1,26 +1,49 @@
 use timedata::*;
 use chrono::{Datelike, NaiveDate, Weekday, NaiveTime, Duration, Local, Timelike};
-use settings::Settings;
+use settings::{Settings};
 use super::Curses;
-use pancurses::{Input, COLOR_PAIR};
+use pancurses::{Input, COLOR_PAIR, Window};
 use std::ops::{Add, Sub};
 
+pub enum TimeField {
+    Hour,
+    Minute,
+}
+
 pub struct Navigator<'a> {
-    pub current_month: FlexMonth,
-    pub current_day: NaiveDate,
-    pub days_off: DaysOff,
-    curses: &'a Curses<'a>,
-    settings: &'a Settings,
+    current_month: FlexMonth,
+    current_day: NaiveDate,
+    days_off: DaysOff,
+    curses: Curses<'a>,
+    settings: Settings,
 }
 
 impl<'a> Navigator<'a> {
-    pub fn new(cur_day: NaiveDate, curses: &'a Curses, settings: &'a Settings) -> Navigator<'a> {
-        Navigator {
-            days_off: DaysOff::load(cur_day.year(), &settings),
-            current_month: FlexMonth::load(cur_day.year(), cur_day.month(), &settings),
-            current_day: cur_day,
-            curses: curses,
-            settings: &settings
+    pub fn new(cur_day: NaiveDate, screen: &'a Window) -> Navigator<'a> {
+        let settings = Settings::load();
+        match settings {
+            Some(settings) => {
+                Navigator {
+                    days_off: DaysOff::load(cur_day.year(), &settings),
+                    current_month: FlexMonth::load(cur_day.year(), cur_day.month(), &settings),
+                    current_day: cur_day,
+                    curses: Curses::new(&screen),
+                    settings: settings,
+                }
+            }
+            None => {
+                let settings = Settings::default();
+                let mut n = Navigator {
+                    days_off: DaysOff::load(cur_day.year(), &settings),
+                    current_month: FlexMonth::load(cur_day.year(), cur_day.month(), &settings),
+                    current_day: cur_day,
+                    curses: Curses::new(&screen),
+                    settings: settings,
+                };
+                n.manage_settings_edit();
+                n.current_month = FlexMonth::load(cur_day.year(), cur_day.month(), &n.settings);
+                n
+            }
         }
     }
 
@@ -33,6 +56,7 @@ impl<'a> Navigator<'a> {
     }
 
     pub fn init(&mut self) {
+        self.curses.main_win.clear();
         self.curses.print_week_header(self.current_day.month(), self.current_day.year());
         self.curses.print_status(&self.settings, &self.current_month, &self.days_off);
 
@@ -67,6 +91,24 @@ impl<'a> Navigator<'a> {
         let old = self.current_day;
         self.current_day = self.current_day.succ();
         if old == find_last_sunday_for(self.current_month.year, self.current_month.month) {
+            self.change_month(true)
+        } else {
+            self.select_day(self.current_day);
+        }
+    }
+
+    pub fn select_prev_week(&mut self) {
+        self.current_day = self.current_day.sub(Duration::days(7));
+        if self.current_day < find_first_monday_of_grid(self.current_month.year, self.current_month.month) {
+            self.change_month(false)
+        } else {
+            self.select_day(self.current_day);
+        }
+    }
+
+    pub fn select_next_week(&mut self) {
+        self.current_day = self.current_day.add(Duration::days(7));
+        if self.current_day > find_last_sunday_for(self.current_month.year, self.current_month.month) {
             self.change_month(true)
         } else {
             self.select_day(self.current_day);
@@ -137,7 +179,7 @@ impl<'a> Navigator<'a> {
                 DayStatus::Worked => match new_status {
                     DayStatus::Holiday => self.days_off.holidays_left -= 1.0,
                     DayStatus::Half => self.days_off.holidays_left -= 0.5,
-                    DayStatus::Sick => self.days_off.sick_days_left -= 1.0,
+                    DayStatus::Sick => self.days_off.sick_days_taken -= 1.0,
                     DayStatus::Weekend | DayStatus::Worked => {},
                 },
                 DayStatus::Holiday => match new_status {
@@ -145,7 +187,7 @@ impl<'a> Navigator<'a> {
                     DayStatus::Half => self.days_off.holidays_left += 0.5,
                     DayStatus::Sick => {
                         self.days_off.holidays_left += 1.0;
-                        self.days_off.sick_days_left -= 1.0;
+                        self.days_off.sick_days_taken -= 1.0;
                     },
                     DayStatus::Holiday => {}
                 },
@@ -154,12 +196,12 @@ impl<'a> Navigator<'a> {
                     DayStatus::Holiday => self.days_off.holidays_left -= 0.5,
                     DayStatus::Sick => {
                         self.days_off.holidays_left += 0.5;
-                        self.days_off.sick_days_left -= 1.0;
+                        self.days_off.sick_days_taken -= 1.0;
                     },
                     DayStatus::Half => {},
                 },
                 DayStatus::Sick => {
-                    self.days_off.sick_days_left += 1.0;
+                    self.days_off.sick_days_taken += 1.0;
                     match new_status {
                         DayStatus::Half => self.days_off.holidays_left -= 0.5,
                         DayStatus::Holiday => self.days_off.holidays_left -= 1.0,
@@ -198,55 +240,126 @@ impl<'a> Navigator<'a> {
         }
     }
 
-    fn manage_digit_input(&self, cur_field: usize, c: char, digit_idx: i32, mut d: &mut FlexDay) {
-        let digit = c.to_digit(10).unwrap();
-        let digit64 = digit as i64;
+
+    fn manage_digit_input_for_time(&self, time: NaiveTime, field: TimeField,
+                                   c: char, digit_idx: i32) -> NaiveTime {
+        let digit = c.to_digit(10);
         if digit_idx == 0 {
-            match cur_field {
-                0 => { unreachable!() },
-                1 => {
-                    d.start = d.start.with_hour(digit)
-                        .expect(&format!("something wrong while with_hour with {}", digit));
+            match digit {
+                Some(digit) => match field {
+                    TimeField::Hour => time.with_hour(digit)
+                        .expect(&format!("something wrong while with_hour with {}", digit)),
+                    TimeField::Minute => time.with_minute(digit)
+                        .expect(&format!("something wrong while with_minute with {}", digit))
                 },
-                2 => {
-                    d.start = d.start.with_minute(digit)
-                        .expect(&format!("something wrong while with_minute with {}", digit));
+                None => match field {
+                    TimeField::Hour => time.with_hour(time.hour() / 10)
+                        .expect(&format!("something wrong while with_hour with {}",
+                                         time.hour() / 10)),
+                    TimeField::Minute => time.with_minute(time.minute() / 10)
+                        .expect(&format!("something wrong while with_minute with {}",
+                                         time.minute() / 10))
                 }
-                3 => {
-                    d.end = d.end.with_hour(digit)
-                        .expect(&format!("something wrong while with_hour with {}", digit));
-                },
-                4 => {
-                    d.end = d.end.with_minute(digit)
-                        .expect(&format!("something wrong while with_minute with {}", digit));
-                },
-                5 => { d.pause = digit64 * 60; },
-                6 => { d.pause = digit64; },
-                _ => { unreachable!() },
             }
         } else {
-            match cur_field {
-                0 => { unreachable!() },
-                1 => { d.start = self.edit_2nd_digit_hour(d.start, digit); },
-                2 => { d.start = self.edit_2nd_digit_minute(d.start, digit); },
-                3 => { d.end = self.edit_2nd_digit_hour(d.end, digit); },
-                4 => { d.end = self.edit_2nd_digit_minute(d.end, digit); },
-                5 => {
-                    if d.pause <= 2 * 60 && digit <= 3 {
-                        d.pause = d.pause * 10 + digit64 * 60;
-                    }
+            match digit {
+                Some(digit) => match field {
+                    TimeField::Hour => self.edit_2nd_digit_hour(time, digit),
+                    TimeField::Minute => self.edit_2nd_digit_minute(time, digit),
                 },
-                6 => {
-                    if d.pause <= 5 {
-                        d.pause = d.pause * 10 + digit64;
-                    }
-                },
-                _ => { unreachable!() },
+                None => match field {
+                    TimeField::Hour => time.with_hour(0).unwrap(),
+                    TimeField::Minute => time.with_minute(0).unwrap(),
+                }
             }
         }
     }
 
-    fn cur_y(&self, d: &FlexDay) -> i32 {
+    fn manage_digit_input_for_duration(&self, duration: i64, field: TimeField,
+                                       c: char, digit_idx: i32) -> i64 {
+        let digit = c.to_digit(10);
+        let nb_hours = duration / 60;
+        let nb_hours_in_min = nb_hours * 60;
+        let min_left = duration - nb_hours_in_min;
+        match digit {
+            Some(digit) => {
+                let digit64 = digit as i64;
+                if digit_idx == 0 {
+                    match field {
+                        TimeField::Hour => digit64 * 60 + min_left,
+                        TimeField::Minute => nb_hours_in_min + digit64
+                    }
+                } else {
+                    match field {
+                        TimeField::Hour => {
+                            if nb_hours <= 2 && digit <= 3 {
+                                nb_hours_in_min * 10 + digit64 * 60 + min_left
+                            } else {
+                                duration
+                            }
+                        },
+                        TimeField::Minute => {
+                            if min_left <= 5 {
+                                nb_hours_in_min + min_left * 10 + digit64
+                            } else {
+                                duration
+                            }
+                        }
+                    }
+                }
+            },
+            None => match field {
+                TimeField::Hour => {
+                    (nb_hours / 10) * 60 + min_left
+                },
+                TimeField::Minute => nb_hours_in_min + min_left / 10
+            }
+        }
+    }
+
+    fn manage_digit_input_for_number(&self, nb: f32, c: char, digit_idx: i32) -> f32 {
+        let digit = match c.to_digit(10) {
+            Some(d) => d,
+            None => return nb
+        };
+        if digit_idx == 0 {
+            digit as f32
+        } else {
+            nb * 10.0 + digit as f32
+        }
+    }
+
+    fn manage_digit_input(&self, cur_field: usize, c: char, digit_idx: i32, mut d: &mut FlexDay) {
+        match cur_field {
+            0 => { unreachable!() },
+            1 => {
+                d.start =
+                    self.manage_digit_input_for_time(d.start, TimeField::Hour, c, digit_idx);
+            },
+            2 => {
+                d.start =
+                    self.manage_digit_input_for_time(d.start, TimeField::Minute, c, digit_idx);
+            }
+            3 => {
+                d.end = self.manage_digit_input_for_time(d.end, TimeField::Hour, c, digit_idx);
+            },
+            4 => {
+                d.end =
+                    self.manage_digit_input_for_time(d.end, TimeField::Minute, c, digit_idx);
+            },
+            5 => {
+                d.pause =
+                    self.manage_digit_input_for_duration(d.pause, TimeField::Hour, c, digit_idx);
+            },
+            6 => {
+                d.pause =
+                    self.manage_digit_input_for_duration(d.pause, TimeField::Minute, c, digit_idx);
+            },
+            _ => { unreachable!() },
+        }
+    }
+
+    fn cur_y_in_week(&self, d: &FlexDay) -> i32 {
         match d.weekday().expect("weekday not set, impossible") {
             Weekday::Mon => 2,
             Weekday::Tue => 3,
@@ -258,10 +371,10 @@ impl<'a> Navigator<'a> {
         }
     }
 
-    pub fn manage_edit(&mut self) {
+    pub fn manage_edit_day(&mut self) {
         let mut d = self.get_current_day().clone();
         let now = Local::now().naive_utc();
-        let cur_y = self.cur_y(&d);
+        let cur_y = self.cur_y_in_week(&d);
         let mut cur_field: usize =
             match d.status {
                 DayStatus::Weekend | DayStatus::Sick | DayStatus::Holiday => 0,
@@ -282,35 +395,39 @@ impl<'a> Navigator<'a> {
                 Some(c) => {
                     match c {
                         Input::KeyRight => {
+                            digit_idx = 0;
                             if cur_field < self.curses.fields.len() - 1 {
                                 cur_field += 1;
                                 self.curses.highlight_current_field(cur_field, &d, cur_y);
                             }
                         },
                         Input::KeyLeft => {
+                            digit_idx = 0;
                             if cur_field > 0 {
                                 cur_field -= 1;
                                 self.curses.highlight_current_field(cur_field, &d, cur_y);
                             }
                         },
                         Input::KeyUp => {
+                            digit_idx = 0;
                             self.manage_key_up_down(cur_field, true, &mut d);
                             self.curses.highlight_current_field(cur_field, &d, cur_y);
                         },
                         Input::KeyDown => {
+                            digit_idx = 0;
                             self.manage_key_up_down(cur_field, false, &mut d);
                             self.curses.highlight_current_field(cur_field, &d, cur_y);
                         },
                         Input::Character('\x1B') | Input::Character('\n') => done = true,
 
-                        Input::Character(c) if c >= '0' || c <= '9' => {
+                        Input::Character(c) if (c >= '0' && c <= '9') || c == '\u{8}' => {
                             if cur_field > 0 {
                                 self.manage_digit_input(cur_field, c, digit_idx, &mut d);
                                 digit_idx = (digit_idx + 1) % 2;
                                 self.curses.highlight_current_field(cur_field, &d, cur_y);
                             }
-                        }
-                        _ => { println!("unknown") }
+                        },
+                        _ => { println!("unknown: {:?}", c) }
                     }
                 }
                 None => {}
@@ -333,7 +450,7 @@ impl<'a> Navigator<'a> {
                     _ => d.status
                 };
                 self.update_display_post_edit(old_status, d);
-                self.curses.week_win.mv(self.cur_y(&d), 0);
+                self.curses.week_win.mv(self.cur_y_in_week(&d), 0);
                 if d.total_minutes() < 0 {
                     self.curses.week_win.attron(COLOR_PAIR(1));
                 }
@@ -355,5 +472,123 @@ impl<'a> Navigator<'a> {
         self.curses.print_status(&self.settings, &self.current_month, &self.days_off);
         self.curses.print_week_total(&week,
                                      week.total_minutes() < self.settings.week_goal);
+    }
+
+    pub fn manage_settings_edit(&mut self) {
+        self.curses.open_settings(&self.settings, &self.days_off);
+        let mut cur_idx = 0;
+        let mut cur_field = 0;
+        let mut done = false;
+        self.select_option(cur_idx, cur_field);
+        let mut digit_idx = 0;
+        while !done {
+            match self.curses.getch() {
+                Some(c) => {
+                    match c {
+                        Input::Character('\x1B') => done = true,
+                        Input::KeyUp => {
+                            digit_idx = 0;
+                            if cur_idx <= 0 {
+                                if cur_field <= 5 {
+                                    cur_idx = 4;
+                                } else {
+                                    cur_idx = 2;
+                                }
+                            } else {
+                                cur_idx -= 1;
+                            }
+                            self.select_option(cur_idx, cur_field);
+                        },
+                        Input::KeyDown => {
+                            digit_idx = 0;
+                            if cur_field <= 5 {
+                                cur_idx = (cur_idx + 1) % 5;
+                            } else {
+                                cur_idx = (cur_idx + 1) % 3;
+                            }
+                            self.select_option(cur_idx, cur_field);
+                        },
+                        Input::KeyLeft => {
+                            digit_idx = 0;
+                            if cur_field > 0 {
+                                cur_field -= 1;
+                            } else {
+                                cur_field = 6;
+                                if cur_idx > 2 { cur_idx = 2; }
+                            }
+                            self.select_option(cur_idx, cur_field);
+                        },
+                        Input::KeyRight => {
+                            digit_idx = 0;
+                            cur_field = (cur_field + 1) % 7;
+                            if cur_field > 5 {
+                                if cur_idx > 2 { cur_idx = 2; }
+                            }
+                            self.select_option(cur_idx, cur_field);
+                        },
+                        Input::Character(c) if c >= '0' && c <= '9' => {
+                            self.manage_option_edition(cur_idx, cur_field, c, digit_idx);
+                            self.select_option(cur_idx, cur_field);
+                            digit_idx = (digit_idx + 1) % 2;
+                        },
+                        _ => {}
+                    }
+                },
+                None => {}
+            }
+        }
+        self.settings.save();
+        self.days_off.save();
+        self.curses.close_setting();
+        self.init();
+    }
+
+    fn select_option(&mut self, cur_idx: i32, cur_field: i32) {
+        self.curses.highlight_option(cur_idx, cur_field, &self.settings, &self.days_off);
+    }
+
+    fn manage_option_edition(&mut self, cur_idx: i32, cur_field: i32, c: char, digit_idx: i32) {
+        match cur_field {
+            sched_field if sched_field <= 5 => {
+                let mut d = self.settings.week_sched.sched[cur_idx as usize];
+                match sched_field {
+                    0 => d.start =
+                        self.manage_digit_input_for_time(d.start, TimeField::Hour, c, digit_idx),
+                    1 => d.start =
+                        self.manage_digit_input_for_time(d.start, TimeField::Minute, c, digit_idx),
+                    2 => d.end =
+                        self.manage_digit_input_for_time(d.end, TimeField::Hour, c, digit_idx),
+                    3 => d.end =
+                        self.manage_digit_input_for_time(d.end, TimeField::Minute, c, digit_idx),
+                    4 => d.pause =
+                        self.manage_digit_input_for_duration(d.pause, TimeField::Hour, c, digit_idx),
+                    5 => d.pause =
+                        self.manage_digit_input_for_duration(d.pause, TimeField::Minute, c, digit_idx),
+                    _ => unreachable!()
+                };
+                self.settings.week_sched.sched[cur_idx as usize] = d;
+            },
+            6 => {
+                match cur_idx {
+                    0 => {
+                        self.settings.holidays_per_year =
+                            self.manage_digit_input_for_number(self.settings.holidays_per_year,
+                                                               c, digit_idx);
+                    },
+                    1 => {
+                        self.days_off.holidays_left =
+                            self.manage_digit_input_for_number(self.days_off.holidays_left,
+                                                               c, digit_idx);
+                    },
+                    2 => {
+                        self.days_off.sick_days_taken =
+                            self.manage_digit_input_for_number(self.days_off.sick_days_taken,
+                                                               c, digit_idx);
+                    },
+                    _ => unreachable!()
+                }
+            },
+            _ => unreachable!()
+        }
     }
 }

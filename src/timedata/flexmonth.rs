@@ -75,7 +75,7 @@ impl FlexMonth {
         let last_sunday = find_last_sunday_for(year, month);
         let range = NaiveDateIter::new(first_day, last_sunday);
         let mut weeks: Vec<FlexWeek> = Vec::new();
-        let mut week: [FlexDay; 7] = [Default::default(); 7];
+        let mut week: [FlexDay; 7] = [FlexDay::default(); 7];
         let mut count = 0;
         for d in range {
             week[count % 7] = FlexDay::new(d, settings);

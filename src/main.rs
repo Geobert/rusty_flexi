@@ -10,13 +10,12 @@ mod settings;
 mod savable;
 mod curses;
 
-use settings::Settings;
+//use settings::Settings;
 use pancurses::*;
 use curses::*;
 
 fn main() {
     timedata::create_data_dir();
-    let settings = Settings::load();
     let window = initscr();
     window.keypad(true);
     noecho();
@@ -25,11 +24,10 @@ fn main() {
     curs_set(0);
 
     init_pair(1, COLOR_RED, COLOR_BLACK);
-
-    let curses = Curses::new(&window);
     let today = chrono::Local::today().naive_utc();
-    let mut navigator = Navigator::new(today, &curses, &settings);
+    let mut navigator = Navigator::new(today, &window);
     navigator.init();
+
     let mut done = false;
     while !done {
         match window.getch() {
@@ -37,13 +35,16 @@ fn main() {
                 Input::Character('q') | Input::Character('\x1B') => done = true,
                 Input::KeyUp => { navigator.select_prev_day(); },
                 Input::KeyDown => { navigator.select_next_day(); },
+                Input::KeyLeft => { navigator.select_prev_week(); },
+                Input::KeyRight => { navigator.select_next_week(); },
                 Input::KeyPPage => { navigator.change_month(false); },
                 Input::KeyNPage => { navigator.change_month(true); },
-                Input::Character('\n') | Input::KeyRight | Input::KeyLeft => {
-                    navigator.manage_edit();
-                },
+                Input::Character('\n') => { navigator.manage_edit_day(); },
                 Input::Character(c) if c == 'h' || c == 's' => { navigator.change_status(c); },
-                Input::Character('o') | Input::Character('s') => {}
+                Input::Character('o') => { navigator.manage_settings_edit(); }
+                Input::Character(' ') => {
+                    // todo edit time with offset
+                },
                 _ => {}
             },
             None => {}

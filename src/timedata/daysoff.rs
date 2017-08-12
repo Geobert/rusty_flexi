@@ -8,7 +8,7 @@ use savable::Savable;
 pub struct DaysOff {
     year: i32,
     pub holidays_left: f32,
-    pub sick_days_left: f32,
+    pub sick_days_taken: f32,
 }
 
 impl<'a> Savable<'a, DaysOff> for DaysOff {}
@@ -18,7 +18,7 @@ impl DaysOff {
         DaysOff {
             year: year,
             holidays_left: settings.holidays_per_year,
-            sick_days_left: settings.sickdays_per_year
+            sick_days_taken: 0.0
         }
     }
 

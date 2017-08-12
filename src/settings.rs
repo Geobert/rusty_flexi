@@ -1,14 +1,15 @@
-use chrono::{Duration, Weekday, NaiveTime, NaiveDate, Datelike};
+use chrono::{Duration, Weekday, NaiveTime, NaiveDate, Datelike, Timelike};
 use std::fs::File;
 use std::io::prelude::*;
 use std::error::Error;
 use std::cmp::Ordering;
 use savable::Savable;
-use timedata::HOLIDAY_DURATION;
+use timedata::{HOLIDAY_DURATION, weekday_to_string};
+use std::fmt::{Display, Result, Formatter};
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 pub struct SettingsDay {
-    pub weekday: Option<Weekday>,
+    pub weekday: Weekday,
     pub start: NaiveTime,
     pub end: NaiveTime,
     // TODO switch to Duration when chrono supports Serialize/Deserialize
@@ -18,7 +19,7 @@ pub struct SettingsDay {
 impl Default for SettingsDay {
     fn default() -> SettingsDay {
         SettingsDay {
-            weekday: None,
+            weekday: Weekday::Mon,
             start: NaiveTime::from_hms(9, 0, 0),
             end: NaiveTime::from_hms(17, 0, 0),
             pause: Duration::minutes(30).num_minutes(),
@@ -26,17 +27,68 @@ impl Default for SettingsDay {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
+impl Display for SettingsDay {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        let pause = Duration::minutes(self.pause);
+        write!(f, "{}  {:02}:{:02} -> {:02}:{:02} - {:02}:{:02}",
+               weekday_to_string(self.weekday),
+               self.start.hour(),
+               self.start.minute(),
+               self.end.hour(),
+               self.end.minute(),
+               pause.num_hours(),
+               pause.num_minutes() - (pause.num_hours() * 60))
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct WeekSchedule {
-    pub default: SettingsDay,
-    pub exceptions: Vec<SettingsDay>
+    pub sched: Vec<SettingsDay>
+}
+
+impl Default for WeekSchedule {
+    fn default() -> WeekSchedule {
+        WeekSchedule {
+            sched: vec![
+                SettingsDay {
+                    weekday: Weekday::Mon,
+                    start: NaiveTime::from_hms(9, 10, 0),
+                    end: NaiveTime::from_hms(17, 10, 0),
+                    pause: Duration::minutes(30).num_minutes(),
+                },
+                SettingsDay {
+                    weekday: Weekday::Tue,
+                    start: NaiveTime::from_hms(9, 10, 0),
+                    end: NaiveTime::from_hms(17, 10, 0),
+                    pause: Duration::minutes(30).num_minutes(),
+                },
+                SettingsDay {
+                    weekday: Weekday::Wed,
+                    start: NaiveTime::from_hms(9, 10, 0),
+                    end: NaiveTime::from_hms(17, 10, 0),
+                    pause: Duration::minutes(30).num_minutes(),
+                },
+                SettingsDay {
+                    weekday: Weekday::Thu,
+                    start: NaiveTime::from_hms(9, 10, 0),
+                    end: NaiveTime::from_hms(17, 10, 0),
+                    pause: Duration::minutes(30).num_minutes(),
+                },
+                SettingsDay {
+                    weekday: Weekday::Fri,
+                    start: NaiveTime::from_hms(9, 10, 0),
+                    end: NaiveTime::from_hms(16, 50, 0),
+                    pause: Duration::minutes(30).num_minutes(),
+                },
+            ]
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Settings {
     pub week_sched: WeekSchedule,
     pub holidays_per_year: f32,
-    pub sickdays_per_year: f32,
     pub week_goal: i64,
     pub holiday_duration: i64,
     // TODO switch to Duration when chrono supports Serialize/Deserialize
@@ -44,27 +96,9 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Settings {
-        let ex_day = SettingsDay {
-            start: NaiveTime::from_hms(9, 10, 00),
-            end: NaiveTime::from_hms(16, 50, 00),
-            pause: 30,
-            weekday: Some(Weekday::Fri),
-        };
-
-        let def_day = SettingsDay {
-            weekday: None,
-            start: NaiveTime::from_hms(9, 10, 00),
-            end: NaiveTime::from_hms(17, 10, 00),
-            pause: 30,
-        };
-
         let settings = Settings {
-            week_sched: WeekSchedule {
-                default: def_day,
-                exceptions: vec![ex_day]
-            },
+            week_sched: WeekSchedule::default(),
             holidays_per_year: 26.0,
-            sickdays_per_year: 30.0,
             week_goal: Duration::hours(37).num_minutes(),
             holiday_duration: Duration::hours(37).num_minutes() / 5,
         };
@@ -76,7 +110,7 @@ impl<'a> Savable<'a, Settings> for Settings {}
 
 impl Settings {
     pub fn save(&self) {
-        let mut file = match File::create("settings.json") {
+        let mut file = match File::create("./data/settings.json") {
             Err(why) => panic!("couldn't create settings.json: {}", why.description()),
             Ok(file) => file,
         };
@@ -85,35 +119,45 @@ impl Settings {
         file.write("\n".as_bytes()).expect("Unable to write \\n");
     }
 
-    pub fn load() -> Settings {
-        let s = match File::open("settings.json") {
-            Err(_) => Default::default(),
+    pub fn load() -> Option<Settings> {
+        match File::open("./data/settings.json") {
+            Err(_) => None,
             Ok(mut file) => {
                 let mut json = String::new();
                 file.read_to_string(&mut json).expect("Failed to read settings.json");
-                Settings::from_json(&json)
+                let settings = Settings::from_json(&json);
+                unsafe {
+                    HOLIDAY_DURATION = settings.holiday_duration;
+                }
+                Some(settings)
             }
-        };
-        unsafe {
-            HOLIDAY_DURATION = s.holiday_duration;
         }
-        s
     }
 
     pub fn get_default_day_settings_for(&self, day: &NaiveDate) -> SettingsDay {
         match day.weekday() {
             Weekday::Sat | Weekday::Sun => {
-                let mut d: SettingsDay = Default::default();
-                d.weekday = Some(day.weekday());
+                let mut d = SettingsDay::default();
+                d.weekday = day.weekday();
                 d
             }
-            _ => match self.week_sched.exceptions.binary_search_by(
-                |flex_day| match flex_day.weekday {
-                    Some(w) => if w == day.weekday() { Ordering::Equal } else { Ordering::Less },
-                    None => Ordering::Less,
-                }) {
-                Ok(idx) => self.week_sched.exceptions[idx],
-                Err(_) => self.week_sched.default,
+            _ => match self.week_sched.sched.binary_search_by(
+                |flex_day| {
+                    let num_left = flex_day.weekday.number_from_monday();
+                    let num_right = day.weekday().number_from_monday();
+                    if flex_day.weekday == day.weekday() {
+                        Ordering::Equal
+                    } else {
+                        if num_left > num_right {
+                            Ordering::Greater
+                        } else {
+                            Ordering::Less
+                        }
+                    }
+                }
+            ) {
+                Ok(idx) => self.week_sched.sched[idx],
+                Err(_) => panic!("couldn't find {:?} in week sched", day.weekday()),
             }
         }
     }
@@ -130,13 +174,31 @@ mod tests {
     fn expected_test_json() -> &'static str {
         r#"{
   "week_sched": {
-    "default": {
-      "weekday": null,
-      "start": "09:10:00",
-      "end": "17:10:00",
-      "pause": 30
-    },
-    "exceptions": [
+    "sched": [
+      {
+        "weekday": "Mon",
+        "start": "09:10:00",
+        "end": "17:10:00",
+        "pause": 30
+      },
+      {
+        "weekday": "Tue",
+        "start": "09:10:00",
+        "end": "17:10:00",
+        "pause": 30
+      },
+      {
+        "weekday": "Wed",
+        "start": "09:10:00",
+        "end": "17:10:00",
+        "pause": 30
+      },
+      {
+        "weekday": "Thu",
+        "start": "09:10:00",
+        "end": "17:10:00",
+        "pause": 30
+      },
       {
         "weekday": "Fri",
         "start": "09:10:00",
@@ -153,11 +215,11 @@ mod tests {
 
     #[test]
     fn save_and_load_test() {
-        let settings: Settings = Default::default();
+        let settings = Settings::default();
         settings.save();
         assert!(File::open("settings.json").is_ok());
         let loaded = Settings::load();
-        assert_eq!(loaded, settings);
+        assert_eq!(loaded, Some(settings));
     }
 
     #[test]
@@ -183,18 +245,9 @@ mod tests {
 
         let cur_date = NaiveDate::from_ymd(2017, 05, 05);
         let expected = SettingsDay {
-            weekday: Some(Weekday::Fri),
+            weekday: Weekday::Fri,
             start: NaiveTime::from_hms(9, 10, 00),
             end: NaiveTime::from_hms(16, 50, 00),
-            pause: 30,
-        };
-        assert_eq!(settings.get_default_day_settings_for(&cur_date), expected);
-
-        let cur_date = NaiveDate::from_ymd(2017, 05, 04);
-        let expected = SettingsDay {
-            weekday: None,
-            start: NaiveTime::from_hms(9, 10, 00),
-            end: NaiveTime::from_hms(17, 10, 00),
             pause: 30,
         };
         assert_eq!(settings.get_default_day_settings_for(&cur_date), expected);
