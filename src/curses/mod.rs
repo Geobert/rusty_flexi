@@ -46,16 +46,18 @@ impl<'a> Curses<'a> {
         let month_str = month_to_string(month);
         self.week_win.mv(0, 0);
         self.week_win.clrtoeol();
-        self.week_win.mvprintw(0, (48 / 2 - (month_str.len() + 5) / 2) as i32,
+        self.week_win.mvprintw(0, 48 / 2 - (month_str.len() as i32 + 5) / 2,
                                &format!("{} {}", month_str, year));
     }
 
+    // print week, BOLD on today's line
     pub fn print_week(&self, week: &FlexWeek, today: &NaiveDate) {
         let mut y = 2;
         self.week_win.mv(y, 0);
         for d in &week.days {
             let day_is_today = d.date.expect("No date in day").day() == today.day();
             if d.total_minutes() < 0 {
+                // end hour before start, print red
                 if day_is_today {
                     self.week_win.attron(A_BOLD);
                 }
@@ -66,6 +68,7 @@ impl<'a> Curses<'a> {
                     self.week_win.attroff(A_BOLD);
                 }
             } else if day_is_today {
+                // bold for selected day
                 self.print_selected_day(&d);
             } else {
                 match d.status {
@@ -84,6 +87,8 @@ impl<'a> Curses<'a> {
 
     pub fn print_week_total(&self, week: &FlexWeek, below_minimum: bool) {
         self.week_win.mv(9, 0);
+        self.week_win.printw(&format!("{:->40} ", " Total ="));
+
         if below_minimum {
             self.week_win.attron(COLOR_PAIR(1));
         }
@@ -139,7 +144,6 @@ impl<'a> Curses<'a> {
             _ => { unreachable!() },
         }
         self.week_win.attroff(A_REVERSE);
-        self.week_win.refresh();
     }
 
     pub fn print_status(&self, settings: &Settings, m: &FlexMonth, off: &DaysOff) {
@@ -174,11 +178,13 @@ impl<'a> Curses<'a> {
         }
         let days_off_title = format!("Days off ({})", m.year);
         self.stat_win.attron(A_UNDERLINE);
-        self.stat_win.mvprintw(start_y + 6, width / 2 - days_off_title.len() as i32 / 2, &days_off_title);
+        self.stat_win.mvprintw(start_y + 6, width / 2 - days_off_title.len() as i32 / 2,
+                               &days_off_title);
         self.stat_win.attroff(A_UNDERLINE);
         self.stat_win.mvprintw(start_y + 8, pad_x, &format!("Holidays left: {: >6}",
                                                             off.holidays_left));
-        self.stat_win.mvprintw(start_y + 9, pad_x, &format!("Sick days taken: {: >4}", off.sick_days_taken));
+        self.stat_win.mvprintw(start_y + 9, pad_x, &format!("Sick days taken: {: >4}",
+                                                            off.sick_days_taken));
         self.stat_win.refresh();
     }
 
@@ -191,14 +197,18 @@ impl<'a> Curses<'a> {
     pub fn open_settings(&mut self, settings: &Settings, off: &DaysOff) {
         let width = 60;
         let height = 14;
-        let option = self.main_win.subwin(height, width, 0, (self.week_win.get_max_x() + self.stat_win.get_max_x()) / 2 - width / 2).expect("Error while creating options' window");
+        let option = self.main_win.subwin(height, width, 0, (self.week_win.get_max_x() +
+            self.stat_win.get_max_x()) / 2 - width / 2)
+            .expect("Error while creating options' window");
         option.overlay(self.main_win);
         option.clear();
         self.print_settings_title(&option, width);
         let beg_y = 3;
         let sub_height = height - beg_y - 1;
-        let sched = option.derwin(sub_height, 28, beg_y, 2).expect("Error while creating sched option window");
-        let days_off = option.derwin(sub_height, 25, beg_y, sched.get_max_x() + 4).expect("Error while creating days off option window");
+        let sched = option.derwin(sub_height, 28, beg_y, 2)
+            .expect("Error while creating sched option window");
+        let days_off = option.derwin(sub_height, 25, beg_y, sched.get_max_x() + 4)
+            .expect("Error while creating days off option window");
 
         self.sub_option_sched = Some(sched);
         self.sub_option_days_off = Some(days_off);
@@ -251,12 +261,14 @@ impl<'a> Curses<'a> {
         self.sub_option_days_off = Some(off);
     }
 
-    pub fn highlight_option(&mut self, cur_idx: i32, cur_field: i32, settings: &Settings, off: &DaysOff) {
+    pub fn highlight_option(&mut self, cur_idx: i32, cur_field: i32,
+                            settings: &Settings, off: &DaysOff) {
         let x_coords: HashMap<i32, i32> = [(0, 7), (1, 10), (2, 16), (3, 19), (4, 24), (5, 27)]
             .iter().cloned().collect();
         let win = self.option_win.take().unwrap();
         win.clear();
-        win.border('\u{2551}', '\u{2551}', '\u{2550}', '\u{2550}', '\u{2554}', '\u{2557}', '\u{255A}', '\u{255D}');
+        win.border('\u{2551}', '\u{2551}', '\u{2550}', '\u{2550}', '\u{2554}', '\u{2557}',
+                   '\u{255A}', '\u{255D}');
         // reset any reverse attr
         self.print_settings_title(&win, win.get_max_x());
         self.print_sched(&settings);
@@ -289,7 +301,11 @@ impl<'a> Curses<'a> {
             },
             _ => unreachable!(),
         };
-        win.printw(&if value == 0.0 && cur_field > 5 { format!("{: >2}", value) } else { format!("{:02}", value) });
+        win.printw(&if value == 0.0 && cur_field > 5 {
+            format!("{: >2}", value)
+        } else {
+            format!("{:02}", value)
+        });
         win.attroff(A_REVERSE);
         win.refresh();
         self.option_win = Some(win);

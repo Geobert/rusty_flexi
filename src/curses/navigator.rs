@@ -32,6 +32,7 @@ impl<'a> Navigator<'a> {
                 }
             }
             None => {
+                // No settings, load defaults and open settings editor
                 let settings = Settings::default();
                 let mut n = Navigator {
                     days_off: DaysOff::load(cur_day.year(), &settings),
@@ -40,7 +41,7 @@ impl<'a> Navigator<'a> {
                     curses: Curses::new(&screen),
                     settings: settings,
                 };
-                n.manage_settings_edit();
+                n.edit_settings();
                 n.current_month = FlexMonth::load(cur_day.year(), cur_day.month(), &n.settings);
                 n
             }
@@ -99,7 +100,8 @@ impl<'a> Navigator<'a> {
 
     pub fn select_prev_week(&mut self) {
         self.current_day = self.current_day.sub(Duration::days(7));
-        if self.current_day < find_first_monday_of_grid(self.current_month.year, self.current_month.month) {
+        if self.current_day <
+            find_first_monday_of_grid(self.current_month.year, self.current_month.month) {
             self.change_month(false)
         } else {
             self.select_day(self.current_day);
@@ -108,7 +110,8 @@ impl<'a> Navigator<'a> {
 
     pub fn select_next_week(&mut self) {
         self.current_day = self.current_day.add(Duration::days(7));
-        if self.current_day > find_last_sunday_for(self.current_month.year, self.current_month.month) {
+        if self.current_day >
+            find_last_sunday_for(self.current_month.year, self.current_month.month) {
             self.change_month(true)
         } else {
             self.select_day(self.current_day);
@@ -371,7 +374,7 @@ impl<'a> Navigator<'a> {
         }
     }
 
-    pub fn manage_edit_day(&mut self) {
+    pub fn edit_day(&mut self) {
         let mut d = self.get_current_day().clone();
         let now = Local::now().naive_utc();
         let cur_y = self.cur_y_in_week(&d);
@@ -386,6 +389,7 @@ impl<'a> Navigator<'a> {
             };
 
         self.curses.highlight_current_field(cur_field, &d, cur_y);
+        self.curses.week_win.refresh();
 
         let mut done = false;
         let mut digit_idx = 0;
@@ -394,6 +398,7 @@ impl<'a> Navigator<'a> {
             match self.curses.getch() {
                 Some(c) => {
                     match c {
+                        Input::Character('\x1B') | Input::Character('\n') => done = true,
                         Input::KeyRight => {
                             digit_idx = 0;
                             if cur_field < self.curses.fields.len() - 1 {
@@ -408,18 +413,11 @@ impl<'a> Navigator<'a> {
                                 self.curses.highlight_current_field(cur_field, &d, cur_y);
                             }
                         },
-                        Input::KeyUp => {
+                        Input::KeyUp | Input::KeyDown => {
                             digit_idx = 0;
-                            self.manage_key_up_down(cur_field, true, &mut d);
+                            self.manage_key_up_down(cur_field, c == Input::KeyUp, &mut d);
                             self.curses.highlight_current_field(cur_field, &d, cur_y);
                         },
-                        Input::KeyDown => {
-                            digit_idx = 0;
-                            self.manage_key_up_down(cur_field, false, &mut d);
-                            self.curses.highlight_current_field(cur_field, &d, cur_y);
-                        },
-                        Input::Character('\x1B') | Input::Character('\n') => done = true,
-
                         Input::Character(c) if (c >= '0' && c <= '9') || c == '\u{8}' => {
                             if cur_field > 0 {
                                 self.manage_digit_input(cur_field, c, digit_idx, &mut d);
@@ -445,8 +443,16 @@ impl<'a> Navigator<'a> {
             Weekday::Sat | Weekday::Sun => {},
             _ => {
                 d.status = match c {
-                    'h' => if d.status == DayStatus::Holiday { DayStatus::Worked } else { DayStatus::Holiday },
-                    's' => if d.status == DayStatus::Sick { DayStatus::Worked } else { DayStatus::Sick },
+                    'h' => if d.status == DayStatus::Holiday {
+                        DayStatus::Worked
+                    } else {
+                        DayStatus::Holiday
+                    },
+                    's' => if d.status == DayStatus::Sick {
+                        DayStatus::Worked
+                    } else {
+                        DayStatus::Sick
+                    },
                     _ => d.status
                 };
                 self.update_display_post_edit(old_status, d);
@@ -474,7 +480,7 @@ impl<'a> Navigator<'a> {
                                      week.total_minutes() < self.settings.week_goal);
     }
 
-    pub fn manage_settings_edit(&mut self) {
+    pub fn edit_settings(&mut self) {
         self.curses.open_settings(&self.settings, &self.days_off);
         let mut cur_idx = 0;
         let mut cur_field = 0;
@@ -561,9 +567,11 @@ impl<'a> Navigator<'a> {
                     3 => d.end =
                         self.manage_digit_input_for_time(d.end, TimeField::Minute, c, digit_idx),
                     4 => d.pause =
-                        self.manage_digit_input_for_duration(d.pause, TimeField::Hour, c, digit_idx),
+                        self.manage_digit_input_for_duration(d.pause, TimeField::Hour, c,
+                                                             digit_idx),
                     5 => d.pause =
-                        self.manage_digit_input_for_duration(d.pause, TimeField::Minute, c, digit_idx),
+                        self.manage_digit_input_for_duration(d.pause, TimeField::Minute, c,
+                                                             digit_idx),
                     _ => unreachable!()
                 };
                 self.settings.week_sched.sched[cur_idx as usize] = d;

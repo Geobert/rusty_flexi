@@ -26,25 +26,16 @@ impl Display for FlexWeek {
 
 impl FlexWeek {
     pub fn new(days: [FlexDay; 7]) -> FlexWeek {
-        FlexWeek { days: days }//, hours: FlexWeek::total_minutes_of(days) }
-    }
-
-    fn total_minutes_of(days: [FlexDay; 7]) -> i64 {
-        days.iter().fold(0, |acc, &day| acc + day.total_minutes())
+        FlexWeek { days: days }
     }
 
     pub fn total_minutes(&self) -> i64 {
-        FlexWeek::total_minutes_of(self.days)
+        self.days.iter().fold(0, |acc, &day| acc + day.total_minutes())
     }
-
-    //    pub fn update(&mut self) {
-    //    self.hours = self.total_minutes();
-    //}
 
     pub fn total_str(&self) -> String {
         let hours = self.total_minutes();
-        format!("{:->40} {:02}:{:02}", " Total =",
-                hours / 60, hours - (hours / 60) * 60)
+        format!("{:02}:{:02}", hours / 60, hours - (hours / 60) * 60)
     }
 }
 

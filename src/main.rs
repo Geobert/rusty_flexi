@@ -1,3 +1,4 @@
+#![windows_subsystem = "windows"]
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -10,7 +11,6 @@ mod settings;
 mod savable;
 mod curses;
 
-//use settings::Settings;
 use pancurses::*;
 use curses::*;
 
@@ -39,9 +39,9 @@ fn main() {
                 Input::KeyRight => { navigator.select_next_week(); },
                 Input::KeyPPage => { navigator.change_month(false); },
                 Input::KeyNPage => { navigator.change_month(true); },
-                Input::Character('\n') => { navigator.manage_edit_day(); },
+                Input::Character('\n') => { navigator.edit_day(); },
                 Input::Character(c) if c == 'h' || c == 's' => { navigator.change_status(c); },
-                Input::Character('o') => { navigator.manage_settings_edit(); }
+                Input::Character('o') => { navigator.edit_settings(); }
                 Input::Character(' ') => {
                     // todo edit time with offset
                 },

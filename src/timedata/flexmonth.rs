@@ -122,10 +122,12 @@ impl FlexMonth {
 
     pub fn get_week_with_day(&self, d: u32) -> Option<(&FlexDay, &FlexWeek)> {
         for w in &self.weeks {
-            if let Some(day) = w.days.iter().find(|&&day| if let Some(date) = day.date
-                { date.day() == d } else { false }) { return Some((&day, &w)); }
+            if let Some(day) = w.days.iter().find(
+                |&&day| if let Some(date) = day.date { date.day() == d } else { false }) {
+                return Some((&day, &w));
+            }
         }
-        return None;
+        None
     }
 
     pub fn total_minute(&self) -> i64 {
