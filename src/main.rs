@@ -1,84 +1,55 @@
-#![feature(proc_macro)]
-
+#![windows_subsystem = "windows"]
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 extern crate chrono;
-extern crate gtk;
-extern crate pango;
-
-#[macro_use]
-extern crate relm;
-extern crate relm_attributes;
-#[macro_use]
-extern crate relm_derive;
-extern crate futures;
-extern crate futures_glib;
-
-use gtk::{
-    WindowExt,
-    Inhibit,
-    WidgetExt,
-    OrientableExt,
-};
-use gtk::Orientation::Vertical;
-use relm::Widget;
-use relm_attributes::widget;
-
-use self::Msg::*;
+extern crate pancurses;
 
 mod timedata;
 mod settings;
 mod savable;
-mod widgets;
+mod curses;
 
-use widgets::DayWidget;
-use timedata::FlexDay;
-use timedata::FlexWeek;
-use timedata::FlexMonth;
-use settings::Settings;
-
-#[derive(Msg)]
-pub enum Msg {
-    Quit
-}
-
-#[widget]
-impl Widget for Win {
-    fn model(m: FlexMonth) -> FlexMonth {
-        m.clone()
-    }
-
-    fn update(&mut self, event: Msg) {
-        match event {
-            Msg::Quit => gtk::main_quit(),
-        }
-    }
-
-    view! {
-        gtk::Window {
-            property_default_height: 650,
-            property_default_width: 1000,
-            title: "Rusty Flexi",
-            #[name="main_box"]
-            gtk::Box {
-                orientation: Vertical,
-                DayWidget(self.model.weeks[0].days[0]),
-//                DayWidget(self.model.weeks[0].days[1]),
-//                DayWidget(self.model.weeks[0].days[2]),
-//                DayWidget(self.model.weeks[0].days[3]),
-//                DayWidget(self.model.weeks[0].days[4]),
-            },
-            delete_event(_, _) => (Quit, Inhibit(false)),
-        }
-    }
-}
+use pancurses::*;
+use curses::*;
 
 fn main() {
     timedata::create_data_dir();
-    let settings = Settings::load();
-    let month = FlexMonth::new(2017, 05, &settings);
+    let window = initscr();
+    window.keypad(true);
+    noecho();
+    cbreak();
+    start_color();
+    curs_set(0);
 
-    Win::run(month).unwrap();
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+    let today = chrono::Local::today().naive_utc();
+    let mut navigator = Navigator::new(today, &window);
+    navigator.init();
+
+    let mut done = false;
+    while !done {
+        match window.getch() {
+            Some(c) => match c {
+                Input::Character('q') | Input::Character('\x1B') => done = true,
+                Input::KeyUp => { navigator.select_prev_day(); },
+                Input::KeyDown => { navigator.select_next_day(); },
+                Input::KeyLeft => { navigator.select_prev_week(); },
+                Input::KeyRight => { navigator.select_next_week(); },
+                Input::KeyPPage => { navigator.change_month(false); },
+                Input::KeyNPage => { navigator.change_month(true); },
+                Input::Character('\n') => { navigator.edit_day(); },
+                Input::Character(c) if c == 'h' || c == 's' => { navigator.change_status(c); },
+                Input::Character('o') => { navigator.edit_settings(); }
+                Input::Character(' ') => {
+                    // todo edit time with offset
+                },
+                _ => {}
+            },
+            None => {}
+        }
+    }
+    endwin();
 }
+
