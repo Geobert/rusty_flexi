@@ -1,6 +1,7 @@
 pub use self::navigator::Navigator;
 
 mod navigator;
+mod editor;
 
 use pancurses::*;
 use timedata::{FlexWeek, FlexDay, FlexMonth, DaysOff, DayStatus, month_to_string};
