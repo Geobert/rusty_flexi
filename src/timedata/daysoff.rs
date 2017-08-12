@@ -54,8 +54,6 @@ impl DaysOff {
 mod tests
 {
     use super::*;
-    use timedata;
-    use chrono::NaiveDate;
 
     #[test]
     fn load_save_load() {

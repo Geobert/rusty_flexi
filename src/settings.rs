@@ -217,7 +217,7 @@ mod tests {
     fn save_and_load_test() {
         let settings = Settings::default();
         settings.save();
-        assert!(File::open("settings.json").is_ok());
+        assert!(File::open("./data/settings.json").is_ok());
         let loaded = Settings::load();
         assert_eq!(loaded, Some(settings));
     }
