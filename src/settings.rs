@@ -102,6 +102,9 @@ impl Default for Settings {
             week_goal: Duration::hours(37).num_minutes(),
             holiday_duration: Duration::hours(37).num_minutes() / 5,
         };
+		unsafe {
+            HOLIDAY_DURATION = settings.holiday_duration;
+        }
         settings
     }
 }
@@ -114,7 +117,9 @@ impl Settings {
             Err(why) => panic!("couldn't create settings.json: {}", why.description()),
             Ok(file) => file,
         };
-
+		unsafe {
+            HOLIDAY_DURATION = self.holiday_duration;
+        }
         file.write_all(self.to_json().as_bytes()).expect("Unable to write data");
         file.write("\n".as_bytes()).expect("Unable to write \\n");
     }
