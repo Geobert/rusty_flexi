@@ -295,9 +295,9 @@ impl<'a> Navigator<'a> {
         let mut digit_idx = 0;
         while !done {
             match self.curses.getch() {
+                Some(Input::Character('\x1B')) => done = true,
                 Some(c) => {
                     match c {
-                        Input::Character('\x1B') => done = true,
                         Input::KeyUp => {
                             digit_idx = 0;
                             if cur_idx <= 0 {
@@ -309,16 +309,15 @@ impl<'a> Navigator<'a> {
                             } else {
                                 cur_idx -= 1;
                             }
-                            self.select_option(cur_idx, cur_field);
                         },
                         Input::KeyDown => {
                             digit_idx = 0;
                             if cur_field <= 5 {
-                                cur_idx = (cur_idx + 1) % 5;
+                                cur_idx = (cur_idx + 1) % 6;
                             } else {
                                 cur_idx = (cur_idx + 1) % 3;
                             }
-                            self.select_option(cur_idx, cur_field);
+                            self.select_option(cur_idx, cur_field)
                         },
                         Input::KeyLeft => {
                             digit_idx = 0;
@@ -328,7 +327,7 @@ impl<'a> Navigator<'a> {
                                 cur_field = 6;
                                 if cur_idx > 2 { cur_idx = 2; }
                             }
-                            self.select_option(cur_idx, cur_field);
+                            self.select_option(cur_idx, cur_field)
                         },
                         Input::KeyRight => {
                             digit_idx = 0;
@@ -336,15 +335,20 @@ impl<'a> Navigator<'a> {
                             if cur_field > 5 {
                                 if cur_idx > 2 { cur_idx = 2; }
                             }
-                            self.select_option(cur_idx, cur_field);
+                            self.select_option(cur_idx, cur_field)
                         },
                         Input::Character(c) if c >= '0' && c <= '9' => {
                             self.manage_option_edition(cur_idx, cur_field, c, digit_idx);
-                            self.select_option(cur_idx, cur_field);
                             digit_idx = (digit_idx + 1) % 2;
+                            self.select_option(cur_idx, cur_field)
                         },
                         _ => {}
-                    }
+                    };
+                    cur_field =
+                        if cur_idx == 5 {
+                            if cur_field < 4 { 4 } else if cur_field > 5 { 5 } else { cur_field }
+                        } else { cur_field };
+                    self.select_option(cur_idx, cur_field)
                 },
                 None => {}
             }
@@ -356,53 +360,71 @@ impl<'a> Navigator<'a> {
     }
 
     fn select_option(&mut self, cur_idx: i32, cur_field: i32) {
-        self.curses.highlight_option(cur_idx, cur_field, &self.settings, &self.days_off);
+        self.curses.highlight_option(cur_idx, cur_field, &self.settings, &self.days_off)
     }
 
     fn manage_option_edition(&mut self, cur_idx: i32, cur_field: i32, c: char, digit_idx: i32) {
-        match cur_field {
-            sched_field if sched_field <= 5 => {
-                let mut d = self.settings.week_sched.sched[cur_idx as usize];
-                match sched_field {
-                    0 => d.start =
-                        editor::process_digit_input_for_time(d.start, TimeField::Hour, c, digit_idx),
-                    1 => d.start =
-                        editor::process_digit_input_for_time(d.start, TimeField::Minute, c, digit_idx),
-                    2 => d.end =
-                        editor::process_digit_input_for_time(d.end, TimeField::Hour, c, digit_idx),
-                    3 => d.end =
-                        editor::process_digit_input_for_time(d.end, TimeField::Minute, c, digit_idx),
-                    4 => d.pause =
-                        editor::process_digit_input_for_duration(d.pause, TimeField::Hour, c,
-                                                                 digit_idx),
-                    5 => d.pause =
-                        editor::process_digit_input_for_duration(d.pause, TimeField::Minute, c,
-                                                                 digit_idx),
-                    _ => unreachable!()
-                };
-                self.settings.week_sched.sched[cur_idx as usize] = d;
-            },
-            6 => {
-                match cur_idx {
-                    0 => {
-                        self.settings.holidays_per_year =
-                            editor::process_digit_input_for_number(self.settings.holidays_per_year,
-                                                                   c, digit_idx);
-                    },
-                    1 => {
-                        self.days_off.holidays_left =
-                            editor::process_digit_input_for_number(self.days_off.holidays_left,
-                                                                   c, digit_idx);
-                    },
-                    2 => {
-                        self.days_off.sick_days_taken =
-                            editor::process_digit_input_for_number(self.days_off.sick_days_taken,
-                                                                   c, digit_idx);
-                    },
-                    _ => unreachable!()
-                }
-            },
-            _ => unreachable!()
+        if cur_idx < 5 {
+            match cur_field {
+                sched_field if sched_field <= 5 => {
+                    let mut d = self.settings.week_sched.sched[cur_idx as usize];
+                    match sched_field {
+                        0 => d.start =
+                            editor::process_digit_input_for_time(d.start, TimeField::Hour, c, digit_idx),
+                        1 => d.start =
+                            editor::process_digit_input_for_time(d.start, TimeField::Minute, c, digit_idx),
+                        2 => d.end =
+                            editor::process_digit_input_for_time(d.end, TimeField::Hour, c, digit_idx),
+                        3 => d.end =
+                            editor::process_digit_input_for_time(d.end, TimeField::Minute, c, digit_idx),
+                        4 => d.pause =
+                            editor::process_digit_input_for_duration(d.pause, TimeField::Hour, c,
+                                                                     digit_idx),
+                        5 => d.pause =
+                            editor::process_digit_input_for_duration(d.pause, TimeField::Minute, c,
+                                                                     digit_idx),
+                        _ => unreachable!()
+                    };
+                    self.settings.week_sched.sched[cur_idx as usize] = d;
+                },
+                6 => {
+                    match cur_idx {
+                        0 => {
+                            self.settings.holidays_per_year =
+                                editor::process_digit_input_for_number(self.settings.holidays_per_year,
+                                                                       c, digit_idx);
+                        },
+                        1 => {
+                            self.days_off.holidays_left =
+                                editor::process_digit_input_for_number(self.days_off.holidays_left,
+                                                                       c, digit_idx);
+                        },
+                        2 => {
+                            self.days_off.sick_days_taken =
+                                editor::process_digit_input_for_number(self.days_off.sick_days_taken,
+                                                                       c, digit_idx);
+                        },
+                        _ => unreachable!()
+                    }
+                },
+                _ => unreachable!()
+            }
+        } else {
+            match cur_field {
+                4 => {
+                    self.settings.week_goal =
+                        editor::process_digit_input_for_duration(self.settings.week_goal,
+                                                                 TimeField::Hour,
+                                                                 c, digit_idx)
+                },
+                5 => {
+                    self.settings.week_goal =
+                        editor::process_digit_input_for_duration(self.settings.week_goal,
+                                                                 TimeField::Minute,
+                                                                 c, digit_idx)
+                },
+                _ => { unreachable!() }
+            }
         }
     }
 }

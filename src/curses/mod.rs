@@ -6,7 +6,7 @@ mod editor;
 use pancurses::*;
 use timedata::{FlexWeek, FlexDay, FlexMonth, DaysOff, DayStatus, month_to_string};
 use settings::Settings;
-use chrono::{NaiveDate, Timelike, Datelike};
+use chrono::{NaiveDate, Timelike, Datelike, Duration};
 use std::collections::HashMap;
 
 pub struct Curses<'a> {
@@ -240,6 +240,10 @@ impl<'a> Curses<'a> {
             sched.mvprintw(cur_y, 0, &s.to_string());
             cur_y += 1;
         }
+        cur_y += 1;
+        let target = Duration::minutes(settings.week_goal);
+        sched.mvprintw(cur_y, 0, &format!("Target per week:      {:02}:{:02}", target.num_hours(),
+                                          target.num_minutes() - (target.num_hours() * 60)));
         self.sub_option_sched = Some(sched);
     }
 
@@ -275,7 +279,8 @@ impl<'a> Curses<'a> {
         self.print_sched(&settings);
         self.print_days_off(&off, &settings);
 
-        let y = cur_idx + 5;
+        // cur_idx == 5 means target week, special field management
+        let y = cur_idx + 5 + if cur_idx == 5 { 1 } else { 0 };
         let x = if cur_field > 5 { 55 } else { x_coords[&cur_field] };
         win.mv(y, x);
         win.attron(A_REVERSE);
@@ -289,15 +294,25 @@ impl<'a> Curses<'a> {
                 }
             },
             f if f <= 5 => {
-                let d = settings.week_sched.sched[cur_idx as usize];
-                match f {
-                    0 => d.start.hour() as f32,
-                    1 => d.start.minute() as f32,
-                    2 => d.end.hour() as f32,
-                    3 => d.end.minute() as f32,
-                    4 => (d.pause / 60) as f32,
-                    5 => (d.pause - (d.pause / 60) * 60) as f32,
-                    _ => unreachable!()
+                if cur_idx < 5 {
+                    let d = settings.week_sched.sched[cur_idx as usize];
+                    match f {
+                        0 => d.start.hour() as f32,
+                        1 => d.start.minute() as f32,
+                        2 => d.end.hour() as f32,
+                        3 => d.end.minute() as f32,
+                        4 => (d.pause / 60) as f32,
+                        5 => (d.pause - (d.pause / 60) * 60) as f32,
+                        _ => unreachable!()
+                    }
+                } else {
+                    let t = Duration::minutes(settings.week_goal);
+                    if f == 4 {
+                        t.num_hours() as f32
+                    } else {
+                        // f should be 5
+                        (t.num_minutes() - t.num_hours() * 60) as f32
+                    }
                 }
             },
             _ => unreachable!(),
