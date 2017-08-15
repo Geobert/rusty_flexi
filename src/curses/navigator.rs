@@ -425,6 +425,7 @@ impl<'a> Navigator<'a> {
                 },
                 _ => { unreachable!() }
             }
+            self.settings.holiday_duration = self.settings.week_goal / 5;
         }
     }
 }
