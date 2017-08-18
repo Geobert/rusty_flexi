@@ -43,12 +43,13 @@ impl<'a> Curses<'a> {
         ch
     }
 
-    pub fn print_week_header(&self, month: u32, year: i32) {
-        let month_str = month_to_string(month);
+    pub fn print_week_header(&self, flex_month: &FlexMonth, cur_week: i32) {
+        let month_str = month_to_string(flex_month.month);
         self.week_win.mv(0, 0);
         self.week_win.clrtoeol();
-        self.week_win.mvprintw(0, 48 / 2 - (month_str.len() as i32 + 5) / 2,
-                               &format!("{} {}", month_str, year));
+        self.week_win.mvprintw(0, 48 / 2 - (month_str.len() as i32 + 11) / 2,
+                               &format!("{} {} ({}/{})", month_str, flex_month.year,
+                                        cur_week, flex_month.weeks.len()));
     }
 
     // print week, BOLD on today's line
