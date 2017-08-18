@@ -4,6 +4,7 @@ use timedata::DayStatus;
 use std::iter::Iterator;
 use std::default::Default;
 use std::fmt::{Display, Result, Formatter};
+use std::ops::{Index, IndexMut};
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Debug)]
 pub struct FlexWeek
@@ -50,6 +51,19 @@ impl Default for FlexWeek {
             wd = wd.succ();
         }
         w
+    }
+}
+
+impl Index<u32> for FlexWeek {
+    type Output = FlexDay;
+    fn index(&self, idx: u32) -> &FlexDay {
+        &self.days[idx as usize]
+    }
+}
+
+impl IndexMut<u32> for FlexWeek {
+    fn index_mut<'a>(&'a mut self, idx: u32) -> &'a mut FlexDay {
+        &mut self.days[idx as usize]
     }
 }
 

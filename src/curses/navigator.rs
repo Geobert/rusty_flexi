@@ -46,7 +46,7 @@ impl<'a> Navigator<'a> {
     }
 
     pub fn get_current_day(&self) -> &FlexDay {
-        let day_and_week = self.current_month.get_week_with_day(self.current_day.day());
+        let day_and_week = self.current_month.get_week_with_day(self.current_day);
         match day_and_week {
             Some((d, _)) => { d }
             None => { unreachable!("No selected day, impossible") }
@@ -61,8 +61,20 @@ impl<'a> Navigator<'a> {
         self.current_day = self.select_day(self.current_day);
     }
 
+    fn first_day_of_month_at_current_weekday(&self) -> NaiveDate {
+        self.current_month.weeks[0]
+            [self.current_day.weekday().num_days_from_monday()].date
+            .expect("change_month: should have date")
+    }
+
+    fn last_day_of_month_at_current_weekday(&self) -> NaiveDate {
+        self.current_month.weeks[self.current_month.weeks.len() - 1]
+            [self.current_day.weekday().num_days_from_monday()].date
+            .expect("change_month: should have date")
+    }
+
     pub fn select_day(&self, date: NaiveDate) -> NaiveDate {
-        let day_and_week = self.current_month.get_week_with_day(date.day());
+        let day_and_week = self.current_month.get_week_with_day(date);
         match day_and_week {
             Some((_, w)) => {
                 self.curses.print_week(&w, &date);
@@ -123,7 +135,11 @@ impl<'a> Navigator<'a> {
         };
         self.current_month = FlexMonth::load(y, m, &self.settings);
         self.curses.print_week_header(m, y);
-        self.select_day(self.current_day);
+        self.current_day = self.select_day(if next {
+            self.first_day_of_month_at_current_weekday()
+        } else {
+            self.last_day_of_month_at_current_weekday()
+        });
         self.curses.print_status(&self.settings, &self.current_month, &self.days_off);
     }
 
