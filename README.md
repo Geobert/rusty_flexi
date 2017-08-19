@@ -11,6 +11,8 @@ Use LEFT/RIGHT to select the field, UP/DOWN to edit it by one unit, or type the 
 Press HOME to focus the current day.
 
 ## Build instruction
+The whole project is only tested on Windows 7/10, should build on other platform but I'm not able to provide support if any issue arise.
+
 On Windows, to use `build.bat`, you need http://angusj.com/resourcehacker/ to be installed in order to have an icon with the exe.
 Edit `build.bat` according to the installation path.
 
