@@ -134,11 +134,7 @@ pub fn process_digit_input_for_duration(duration: i64, field: TimeField,
             } else {
                 match field {
                     TimeField::Hour => {
-                        if nb_hours <= 2 && digit <= 3 {
-                            nb_hours_in_min * 10 + digit64 * 60 + min_left
-                        } else {
-                            duration
-                        }
+                        nb_hours_in_min * 10 + digit64 * 60 + min_left
                     },
                     TimeField::Minute => {
                         if min_left <= 5 {

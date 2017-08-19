@@ -87,22 +87,35 @@ impl Default for WeekSchedule {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Settings {
+    #[serde(default)]
     pub week_sched: WeekSchedule,
+    #[serde(default = "default_holidays_per_year")]
     pub holidays_per_year: f32,
+    #[serde(default = "default_week_goal")]
     pub week_goal: i64,
+    #[serde(default = "default_holiday_duration")]
     pub holiday_duration: i64,
+    #[serde(default)]
+    pub offset: i64,
     // TODO switch to Duration when chrono supports Serialize/Deserialize
 }
+
+fn default_week_goal() -> i64 { Duration::hours(37).num_minutes() }
+
+fn default_holiday_duration() -> i64 { default_week_goal() / 5 }
+
+fn default_holidays_per_year() -> f32 { 33.0 }
 
 impl Default for Settings {
     fn default() -> Settings {
         let settings = Settings {
             week_sched: WeekSchedule::default(),
-            holidays_per_year: 26.0,
-            week_goal: Duration::hours(37).num_minutes(),
-            holiday_duration: Duration::hours(37).num_minutes() / 5,
+            holidays_per_year: default_holidays_per_year(),
+            week_goal: default_week_goal(),
+            holiday_duration: default_holiday_duration(),
+            offset: 0,
         };
-		unsafe {
+        unsafe {
             HOLIDAY_DURATION = settings.holiday_duration;
         }
         settings
@@ -117,7 +130,7 @@ impl Settings {
             Err(why) => panic!("couldn't create settings.json: {}", why.description()),
             Ok(file) => file,
         };
-		unsafe {
+        unsafe {
             HOLIDAY_DURATION = self.holiday_duration;
         }
         file.write_all(self.to_json().as_bytes()).expect("Unable to write data");
@@ -214,7 +227,8 @@ mod tests {
   },
   "holidays_per_year": 26.0,
   "week_goal": 2220,
-  "holiday_duration": 444
+  "holiday_duration": 444,
+  "offset": 0
 }"#
     }
 

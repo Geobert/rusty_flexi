@@ -13,6 +13,8 @@ mod curses;
 
 use pancurses::*;
 use curses::*;
+use chrono::Duration;
+use std::ops::Add;
 
 fn main() {
     timedata::create_data_dir();
@@ -24,7 +26,7 @@ fn main() {
     curs_set(0);
 
     init_pair(1, COLOR_RED, COLOR_BLACK);
-    let today = chrono::Local::today().naive_utc();
+    let today = chrono::Local::today().naive_local();
     let mut navigator = Navigator::new(today, &window);
     navigator.init();
 
@@ -42,10 +44,17 @@ fn main() {
                 Input::Character('\n') => { navigator.edit_day(); },
                 Input::Character(c) if c == 'h' || c == 's' => { navigator.change_status(c); },
                 Input::Character('o') => { navigator.edit_settings(); }
-                Input::Character(' ') => {
-                    // todo edit time with offset
+                Input::KeyHome => {
+                    let today = chrono::Local::today().naive_local();
+                    navigator.select_day(today);
                 },
-                _ => {}
+                Input::Character(c) if c == 'b' || c == 'e' => {
+                    let offset = navigator.settings.offset;
+                    navigator.change_time(chrono::Local::now().naive_local().time()
+                                              .add(Duration::minutes(offset)),
+                                          if c == 'b' { HourField::Begin } else { HourField::End });
+                },
+                _ => { println!("unknown: {:?}", c); }
             },
             None => {}
         }

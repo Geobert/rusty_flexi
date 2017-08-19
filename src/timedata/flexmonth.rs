@@ -120,12 +120,14 @@ impl FlexMonth {
         }
     }
 
-    pub fn get_week_with_day(&self, d: u32) -> Option<(&FlexDay, &FlexWeek)> {
+    pub fn get_week_with_day(&self, d: NaiveDate) -> Option<(&FlexDay, &FlexWeek, i32)> {
+        let mut week_number = 1;
         for w in &self.weeks {
             if let Some(day) = w.days.iter().find(
-                |&&day| if let Some(date) = day.date { date.day() == d } else { false }) {
-                return Some((&day, &w));
+                |&&day| if let Some(date) = day.date { date == d } else { false }) {
+                return Some((&day, &w, week_number));
             }
+            week_number += 1;
         }
         None
     }
@@ -161,7 +163,7 @@ mod tests
     fn get_week_with_day_test() {
         let settings: Settings = Default::default();
         let m = FlexMonth::new(2017, 05, &settings);
-        let w = m.get_week_with_day(10).unwrap();
+        let w = m.get_week_with_day(NaiveDate::from_ymd(2017, 05, 10)).unwrap();
         assert_eq!(w.1.days[0].date.unwrap().day(), 8);
     }
 
