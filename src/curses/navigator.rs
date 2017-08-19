@@ -56,8 +56,8 @@ impl<'a> Navigator<'a> {
     pub fn init(&mut self) {
         self.curses.main_win.clear();
         self.curses.print_status(&self.settings, &self.current_month, &self.days_off);
-
-        self.current_day = self.select_day(self.current_day);
+        let date = self.current_day;
+        self.current_day = self.select_day(date);
     }
 
     fn first_day_of_month_at_current_weekday(&self) -> NaiveDate {
@@ -72,19 +72,47 @@ impl<'a> Navigator<'a> {
             .expect("change_month: should have date")
     }
 
-    pub fn select_day(&self, date: NaiveDate) -> NaiveDate {
-        let day_and_week = self.current_month.get_week_with_day(date);
+    fn select_day_in_month(&self, date: NaiveDate, month: &FlexMonth) -> Option<NaiveDate> {
+        let day_and_week = month.get_week_with_day(date);
         match day_and_week {
             Some((_, w, week_nb)) => {
-                self.curses.print_week_header(&self.current_month, week_nb);
+                self.curses.print_week_header(&month, week_nb);
                 self.curses.print_week(&w, &date);
                 self.curses.print_week_total(&w, w.total_minutes() < self.settings.week_goal);
-                date
+                Some(date)
             }
             None => {
-                self.select_day(date.pred())
+                None
             }
         }
+    }
+
+    pub fn select_day(&mut self, date: NaiveDate) -> NaiveDate {
+        let month = self.current_month.clone();
+        match self.select_day_in_month(date, &month) {
+            Some(date) => {
+                self.current_day = date;
+                date
+            },
+            None => {
+                self.current_month = FlexMonth::load(date.year(), date.month(), &self.settings);
+                self.select_day(date)
+            }
+        }
+
+        //        let day_and_week = self.current_month.get_week_with_day(date);
+        //        match day_and_week {
+        //            Some((_, w, week_nb)) => {
+        //                self.curses.print_week_header(&self.current_month, week_nb);
+        //                self.curses.print_week(&w, &date);
+        //                self.curses.print_week_total(&w, w.total_minutes() < self.settings.week_goal);
+        //                date
+        //            }
+        //            None => {
+        //                self.current_month = FlexMonth::load(date.year(), date.month(), &self.settings);
+        //                self.select_day(date)
+        //            }
+        //        }
     }
 
     pub fn select_prev_day(&mut self) {
@@ -93,7 +121,8 @@ impl<'a> Navigator<'a> {
         if old == find_first_monday_of_grid(self.current_month.year, self.current_month.month) {
             self.change_month(false)
         } else {
-            self.select_day(self.current_day);
+            let date = self.current_day;
+            self.select_day(date);
         }
     }
 
@@ -103,7 +132,8 @@ impl<'a> Navigator<'a> {
         if old == find_last_sunday_for(self.current_month.year, self.current_month.month) {
             self.change_month(true)
         } else {
-            self.select_day(self.current_day);
+            let date = self.current_day;
+            self.select_day(date);
         }
     }
 
@@ -113,7 +143,8 @@ impl<'a> Navigator<'a> {
             find_first_monday_of_grid(self.current_month.year, self.current_month.month) {
             self.change_month(false)
         } else {
-            self.select_day(self.current_day);
+            let date = self.current_day;
+            self.select_day(date);
         }
     }
 
@@ -123,7 +154,8 @@ impl<'a> Navigator<'a> {
             find_last_sunday_for(self.current_month.year, self.current_month.month) {
             self.change_month(true)
         } else {
-            self.select_day(self.current_day);
+            let date = self.current_day;
+            self.select_day(date);
         }
     }
 
@@ -134,11 +166,12 @@ impl<'a> Navigator<'a> {
             prev_month(self.current_month.year, self.current_month.month)
         };
         self.current_month = FlexMonth::load(y, m, &self.settings);
-        self.current_day = self.select_day(if next {
+        let date = if next {
             self.first_day_of_month_at_current_weekday()
         } else {
             self.last_day_of_month_at_current_weekday()
-        });
+        };
+        self.current_day = self.select_day(date);
         self.curses.print_status(&self.settings, &self.current_month, &self.days_off);
     }
 
@@ -254,7 +287,8 @@ impl<'a> Navigator<'a> {
             self.update_display_post_edit(old_status, d);
         }
         // remove any reverse attr
-        self.select_day(self.current_day);
+        let date = self.current_day;
+        self.select_day(date);
     }
 
     pub fn change_status(&mut self, c: char) {

@@ -42,10 +42,14 @@ fn main() {
                 Input::Character('\n') => { navigator.edit_day(); },
                 Input::Character(c) if c == 'h' || c == 's' => { navigator.change_status(c); },
                 Input::Character('o') => { navigator.edit_settings(); }
+                Input::KeyHome => {
+                    let today = chrono::Local::today().naive_utc();
+                    navigator.select_day(today);
+                }
                 Input::Character(' ') => {
                     // todo edit time with offset
                 },
-                _ => {}
+                _ => { println!("unknown: {:?}", c); }
             },
             None => {}
         }
