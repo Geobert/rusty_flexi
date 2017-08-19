@@ -8,3 +8,4 @@ At first launch, use arrows key to select and configure your schedule and how ma
 On the main view, use UP/DOWN to select the day to edit and ENTER to go to edit mode. 
 Use LEFT/RIGHT to select the field, UP/DOWN to edit it by one unit, or type the wanted value. Press ENTER or ESC to finish.
 
+Press HOME to focus the current day.
