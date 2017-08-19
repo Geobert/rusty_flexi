@@ -91,6 +91,8 @@ pub struct Settings {
     pub holidays_per_year: f32,
     pub week_goal: i64,
     pub holiday_duration: i64,
+    #[serde(default)]
+    pub offset: i64,
     // TODO switch to Duration when chrono supports Serialize/Deserialize
 }
 
@@ -101,8 +103,9 @@ impl Default for Settings {
             holidays_per_year: 26.0,
             week_goal: Duration::hours(37).num_minutes(),
             holiday_duration: Duration::hours(37).num_minutes() / 5,
+            offset: 0,
         };
-		unsafe {
+        unsafe {
             HOLIDAY_DURATION = settings.holiday_duration;
         }
         settings
@@ -117,7 +120,7 @@ impl Settings {
             Err(why) => panic!("couldn't create settings.json: {}", why.description()),
             Ok(file) => file,
         };
-		unsafe {
+        unsafe {
             HOLIDAY_DURATION = self.holiday_duration;
         }
         file.write_all(self.to_json().as_bytes()).expect("Unable to write data");
@@ -214,7 +217,8 @@ mod tests {
   },
   "holidays_per_year": 26.0,
   "week_goal": 2220,
-  "holiday_duration": 444
+  "holiday_duration": 444,
+  "offset": 0
 }"#
     }
 

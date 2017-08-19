@@ -12,7 +12,7 @@ pub struct Navigator<'a> {
     current_day: NaiveDate,
     days_off: DaysOff,
     curses: Curses<'a>,
-    settings: Settings,
+    pub settings: Settings,
 }
 
 pub enum HourField {
