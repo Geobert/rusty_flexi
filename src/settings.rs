@@ -87,22 +87,32 @@ impl Default for WeekSchedule {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct Settings {
+    #[serde(default)]
     pub week_sched: WeekSchedule,
+    #[serde(default = "default_holidays_per_year")]
     pub holidays_per_year: f32,
+    #[serde(default = "default_week_goal")]
     pub week_goal: i64,
+    #[serde(default = "default_holiday_duration")]
     pub holiday_duration: i64,
     #[serde(default)]
     pub offset: i64,
     // TODO switch to Duration when chrono supports Serialize/Deserialize
 }
 
+fn default_week_goal() -> i64 { Duration::hours(37).num_minutes() }
+
+fn default_holiday_duration() -> i64 { default_week_goal() / 5 }
+
+fn default_holidays_per_year() -> f32 { 33.0 }
+
 impl Default for Settings {
     fn default() -> Settings {
         let settings = Settings {
             week_sched: WeekSchedule::default(),
-            holidays_per_year: 26.0,
-            week_goal: Duration::hours(37).num_minutes(),
-            holiday_duration: Duration::hours(37).num_minutes() / 5,
+            holidays_per_year: default_holidays_per_year(),
+            week_goal: default_week_goal(),
+            holiday_duration: default_holiday_duration(),
             offset: 0,
         };
         unsafe {
