@@ -10,7 +10,7 @@ use super::editor::TimeField;
 pub struct Navigator<'a> {
     current_month: FlexMonth,
     current_day: NaiveDate,
-    days_off: DaysOff,
+    pub days_off: DaysOff,
     curses: Curses<'a>,
     pub settings: Settings,
 }

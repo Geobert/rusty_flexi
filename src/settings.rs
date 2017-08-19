@@ -41,7 +41,7 @@ impl Display for SettingsDay {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct WeekSchedule {
     pub sched: Vec<SettingsDay>
 }
@@ -85,7 +85,7 @@ impl Default for WeekSchedule {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Settings {
     #[serde(default)]
     pub week_sched: WeekSchedule,
@@ -104,7 +104,7 @@ fn default_week_goal() -> i64 { Duration::hours(37).num_minutes() }
 
 fn default_holiday_duration() -> i64 { default_week_goal() / 5 }
 
-fn default_holidays_per_year() -> f32 { 33.0 }
+fn default_holidays_per_year() -> f32 { 26.0 }
 
 impl Default for Settings {
     fn default() -> Settings {
