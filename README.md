@@ -9,3 +9,9 @@ On the main view, use UP/DOWN to select the day to edit and ENTER to go to edit
 Use LEFT/RIGHT to select the field, UP/DOWN to edit it by one unit, or type the wanted value. Press ENTER or ESC to finish.
 
 Press HOME to focus the current day.
+
+## Build instruction
+On Windows, to use `build.bat`, you need http://angusj.com/resourcehacker/ to be installed in order to have an icon with the exe.
+Edit `build.bat` according to the installation path.
+
+If you don't care about the icon, just `cargo build --release`. 
