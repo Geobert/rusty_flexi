@@ -109,15 +109,19 @@ impl FlexMonth {
         file.write("\n".as_bytes()).expect("Unable to write");
     }
 
-    pub fn load(year: i32, month: u32, settings: &Settings) -> FlexMonth {
+    pub fn load_with_flag(year: i32, month: u32, settings: &Settings) -> (FlexMonth, bool) {
         match File::open(FlexMonth::filename(year, month)) {
-            Err(_) => FlexMonth::new(year, month, &settings),
+            Err(_) => (FlexMonth::new(year, month, &settings), false),
             Ok(mut file) => {
                 let mut json = String::new();
                 file.read_to_string(&mut json).expect("Failed to read file");
-                FlexMonth::from_json(&json)
+                (FlexMonth::from_json(&json), true)
             }
         }
+    }
+
+    pub fn load(year: i32, month: u32, settings: &Settings) -> FlexMonth {
+        FlexMonth::load_with_flag(year, month, &settings).0
     }
 
     pub fn get_week_with_day(&self, d: NaiveDate) -> Option<(&FlexDay, &FlexWeek, i32)> {
