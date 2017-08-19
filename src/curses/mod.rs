@@ -1,4 +1,5 @@
 pub use self::navigator::Navigator;
+pub use self::navigator::HourField;
 
 mod navigator;
 mod editor;

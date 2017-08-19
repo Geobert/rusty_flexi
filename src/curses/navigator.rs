@@ -15,6 +15,11 @@ pub struct Navigator<'a> {
     settings: Settings,
 }
 
+pub enum HourField {
+    Begin,
+    End
+}
+
 impl<'a> Navigator<'a> {
     pub fn new(cur_day: NaiveDate, screen: &'a Window) -> Navigator<'a> {
         let settings = Settings::load();
@@ -99,20 +104,6 @@ impl<'a> Navigator<'a> {
                 self.select_day(date)
             }
         }
-
-        //        let day_and_week = self.current_month.get_week_with_day(date);
-        //        match day_and_week {
-        //            Some((_, w, week_nb)) => {
-        //                self.curses.print_week_header(&self.current_month, week_nb);
-        //                self.curses.print_week(&w, &date);
-        //                self.curses.print_week_total(&w, w.total_minutes() < self.settings.week_goal);
-        //                date
-        //            }
-        //            None => {
-        //                self.current_month = FlexMonth::load(date.year(), date.month(), &self.settings);
-        //                self.select_day(date)
-        //            }
-        //        }
     }
 
     pub fn select_prev_day(&mut self) {
@@ -310,17 +301,35 @@ impl<'a> Navigator<'a> {
                     },
                     _ => d.status
                 };
-                self.update_display_post_edit(old_status, d);
-                self.curses.week_win.mv(self.cur_y_in_week(&d), 0);
-                if d.total_minutes() < 0 {
-                    self.curses.week_win.attron(COLOR_PAIR(1));
-                }
-                self.curses.print_selected_day(&d);
-                if d.total_minutes() < 0 {
-                    self.curses.week_win.attroff(COLOR_PAIR(1));
-                }
-                self.curses.week_win.refresh();
+                self.update_display_post_direct_edit(old_status, d);
             }
+        }
+    }
+
+    fn update_display_post_direct_edit(&mut self, old_status: DayStatus, d: FlexDay) {
+        self.update_display_post_edit(old_status, d);
+        self.curses.week_win.mv(self.cur_y_in_week(&d), 0);
+        if d.total_minutes() < 0 {
+            self.curses.week_win.attron(COLOR_PAIR(1));
+        }
+        self.curses.print_selected_day(&d);
+        if d.total_minutes() < 0 {
+            self.curses.week_win.attroff(COLOR_PAIR(1));
+        }
+        self.curses.week_win.refresh();
+    }
+
+    pub fn change_time(&mut self, time: NaiveTime, field: HourField) {
+        let mut d = self.get_current_day().clone();
+        match d.status {
+            DayStatus::Worked | DayStatus::Half => {
+                match field {
+                    HourField::Begin => d.start = time,
+                    HourField::End => d.end = time
+                }
+                self.update_display_post_direct_edit(d.status, d);
+            },
+            _ => {}
         }
     }
 
