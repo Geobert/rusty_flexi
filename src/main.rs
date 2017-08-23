@@ -13,8 +13,8 @@ mod curses;
 
 use pancurses::*;
 use curses::*;
-use chrono::{Duration, NaiveDate, Datelike};
-use std::ops::Add;
+use chrono::{Duration, NaiveDate, Datelike, NaiveTime, Timelike};
+use std::ops::{Add, Sub};
 use timedata::{FlexMonth, DayStatus};
 use settings::Settings;
 
@@ -84,9 +84,10 @@ fn main() {
                     navigator.select_day(today);
                 },
                 Input::Character(c) if c == 'b' || c == 'e' => {
-                    let offset = navigator.settings.offset;
-                    navigator.change_time(chrono::Local::now().naive_local().time()
-                                              .add(Duration::minutes(offset)),
+                    let offset = Duration::minutes(navigator.settings.offset);
+                    let t = chrono::Local::now().naive_local().time();
+					let t =  NaiveTime::from_hms(t.hour(), t.minute(), 0); // clear seconds
+                    navigator.change_time(if c == 'b' { t.sub(offset) } else { t.add(offset) },
                                           if c == 'b' { HourField::Begin } else { HourField::End });
                 },
                 _ => { println!("unknown: {:?}", c); }
