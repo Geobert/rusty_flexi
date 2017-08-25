@@ -86,9 +86,10 @@ fn main() {
                 Input::Character(c) if c == 'b' || c == 'e' => {
                     let offset = Duration::minutes(navigator.settings.offset);
                     let t = chrono::Local::now().naive_local().time();
-					let t =  NaiveTime::from_hms(t.hour(), t.minute(), 0); // clear seconds
+                    let t = NaiveTime::from_hms(t.hour(), t.minute(), 0); // clear seconds
                     navigator.change_time(if c == 'b' { t.sub(offset) } else { t.add(offset) },
                                           if c == 'b' { HourField::Begin } else { HourField::End });
+                    navigator.edit_day();
                 },
                 _ => { println!("unknown: {:?}", c); }
             },
