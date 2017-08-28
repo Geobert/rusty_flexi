@@ -1,6 +1,6 @@
 use timedata::*;
 use chrono::{Datelike, NaiveDate, Weekday, NaiveTime, Duration, Local};
-use settings::{Settings};
+use settings::Settings;
 use super::Curses;
 use pancurses::{Input, COLOR_PAIR, Window};
 use std::ops::{Add, Sub};
@@ -93,15 +93,21 @@ impl<'a> Navigator<'a> {
     }
 
     pub fn select_day(&mut self, date: NaiveDate) -> NaiveDate {
-        let month = self.current_month.clone();
-        match self.select_day_in_month(date, &month) {
+        let cur_month = self.current_month.clone();
+        match self.select_day_in_month(date, &cur_month) {
             Some(date) => {
                 self.current_day = date;
                 date
-            },
+            }
             None => {
-                self.current_month = FlexMonth::load(date.year(), (date.month() + 1) % 12,
-                                                     &self.settings);
+                self.current_month =
+                    FlexMonth::load(date.year(),
+                                    if date.month() < cur_month.month {
+                                        date.month() - 1
+                                    } else {
+                                        date.month() + 1
+                                    } % 12,
+                                    &self.settings);
                 self.select_day(date)
             }
         }
@@ -174,7 +180,7 @@ impl<'a> Navigator<'a> {
                     DayStatus::Holiday => self.days_off.holidays_left -= 1.0,
                     DayStatus::Half => self.days_off.holidays_left -= 0.5,
                     DayStatus::Sick => self.days_off.sick_days_taken -= 1.0,
-                    DayStatus::Weekend | DayStatus::Worked => {},
+                    DayStatus::Weekend | DayStatus::Worked => {}
                 },
                 DayStatus::Holiday => match new_status {
                     DayStatus::Worked | DayStatus::Weekend => self.days_off.holidays_left += 1.0,
@@ -182,7 +188,7 @@ impl<'a> Navigator<'a> {
                     DayStatus::Sick => {
                         self.days_off.holidays_left += 1.0;
                         self.days_off.sick_days_taken -= 1.0;
-                    },
+                    }
                     DayStatus::Holiday => {}
                 },
                 DayStatus::Half => match new_status {
@@ -191,19 +197,19 @@ impl<'a> Navigator<'a> {
                     DayStatus::Sick => {
                         self.days_off.holidays_left += 0.5;
                         self.days_off.sick_days_taken -= 1.0;
-                    },
-                    DayStatus::Half => {},
+                    }
+                    DayStatus::Half => {}
                 },
                 DayStatus::Sick => {
                     self.days_off.sick_days_taken += 1.0;
                     match new_status {
                         DayStatus::Half => self.days_off.holidays_left -= 0.5,
                         DayStatus::Holiday => self.days_off.holidays_left -= 1.0,
-                        DayStatus::Sick => {},
+                        DayStatus::Sick => {}
                         DayStatus::Worked | DayStatus::Weekend => {}
                     }
-                },
-                DayStatus::Weekend => {},
+                }
+                DayStatus::Weekend => {}
             }
         }
     }
@@ -251,26 +257,26 @@ impl<'a> Navigator<'a> {
                                 cur_field += 1;
                                 self.curses.highlight_current_field(cur_field, &d, cur_y);
                             }
-                        },
+                        }
                         Input::KeyLeft => {
                             digit_idx = 0;
                             if cur_field > 0 {
                                 cur_field -= 1;
                                 self.curses.highlight_current_field(cur_field, &d, cur_y);
                             }
-                        },
+                        }
                         Input::KeyUp | Input::KeyDown => {
                             digit_idx = 0;
                             editor::process_key_up_down(cur_field, c == Input::KeyUp, &mut d);
                             self.curses.highlight_current_field(cur_field, &d, cur_y);
-                        },
+                        }
                         Input::Character(c) if (c >= '0' && c <= '9') || c == '\u{8}' => {
                             if cur_field > 0 {
                                 editor::process_digit_input(cur_field, c, digit_idx, &mut d);
                                 digit_idx = (digit_idx + 1) % 2;
                                 self.curses.highlight_current_field(cur_field, &d, cur_y);
                             }
-                        },
+                        }
                         _ => { println!("unknown: {:?}", c) }
                     }
                 }
@@ -287,7 +293,7 @@ impl<'a> Navigator<'a> {
         let mut d = self.get_current_day().clone();
         let old_status = d.status;
         match d.weekday().expect("must have weekday") {
-            Weekday::Sat | Weekday::Sun => {},
+            Weekday::Sat | Weekday::Sun => {}
             _ => {
                 d.status = match c {
                     'h' => if d.status == DayStatus::Holiday {
@@ -329,7 +335,7 @@ impl<'a> Navigator<'a> {
                     HourField::End => d.end = time
                 }
                 self.update_display_post_direct_edit(d.status, d);
-            },
+            }
             _ => {}
         }
     }
@@ -368,7 +374,7 @@ impl<'a> Navigator<'a> {
                             } else {
                                 cur_idx -= 1;
                             }
-                        },
+                        }
                         Input::KeyDown => {
                             digit_idx = 0;
                             if cur_field <= 5 {
@@ -377,7 +383,7 @@ impl<'a> Navigator<'a> {
                                 cur_idx = (cur_idx + 1) % 3;
                             }
                             self.select_option(cur_idx, cur_field)
-                        },
+                        }
                         Input::KeyLeft => {
                             digit_idx = 0;
                             if cur_field > 0 {
@@ -387,7 +393,7 @@ impl<'a> Navigator<'a> {
                                 if cur_idx > 2 { cur_idx = 2; }
                             }
                             self.select_option(cur_idx, cur_field)
-                        },
+                        }
                         Input::KeyRight => {
                             digit_idx = 0;
                             cur_field = (cur_field + 1) % 7;
@@ -395,12 +401,12 @@ impl<'a> Navigator<'a> {
                                 if cur_idx > 2 { cur_idx = 2; }
                             }
                             self.select_option(cur_idx, cur_field)
-                        },
+                        }
                         Input::Character(c) if c >= '0' && c <= '9' => {
                             self.manage_option_edition(cur_idx, cur_field, c, digit_idx);
                             digit_idx = (digit_idx + 1) % 2;
                             self.select_option(cur_idx, cur_field)
-                        },
+                        }
                         _ => {}
                     };
                     cur_field =
@@ -408,7 +414,7 @@ impl<'a> Navigator<'a> {
                             if cur_field < 4 { 4 } else if cur_field > 5 { 5 } else { cur_field }
                         } else { cur_field };
                     self.select_option(cur_idx, cur_field)
-                },
+                }
                 None => {}
             }
         }
@@ -445,27 +451,27 @@ impl<'a> Navigator<'a> {
                         _ => unreachable!()
                     };
                     self.settings.week_sched.sched[cur_idx as usize] = d;
-                },
+                }
                 6 => {
                     match cur_idx {
                         0 => {
                             self.settings.holidays_per_year =
                                 editor::process_digit_input_for_number(self.settings.holidays_per_year,
                                                                        c, digit_idx);
-                        },
+                        }
                         1 => {
                             self.days_off.holidays_left =
                                 editor::process_digit_input_for_number(self.days_off.holidays_left,
                                                                        c, digit_idx);
-                        },
+                        }
                         2 => {
                             self.days_off.sick_days_taken =
                                 editor::process_digit_input_for_number(self.days_off.sick_days_taken,
                                                                        c, digit_idx);
-                        },
+                        }
                         _ => unreachable!()
                     }
-                },
+                }
                 _ => unreachable!()
             }
         } else {
@@ -475,13 +481,13 @@ impl<'a> Navigator<'a> {
                         editor::process_digit_input_for_duration(self.settings.week_goal,
                                                                  TimeField::Hour,
                                                                  c, digit_idx)
-                },
+                }
                 5 => {
                     self.settings.week_goal =
                         editor::process_digit_input_for_duration(self.settings.week_goal,
                                                                  TimeField::Minute,
                                                                  c, digit_idx)
-                },
+                }
                 _ => { unreachable!() }
             }
             self.settings.holiday_duration = self.settings.week_goal / 5;
