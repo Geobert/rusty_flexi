@@ -60,9 +60,9 @@ impl<'a> Navigator<'a> {
 
     pub fn init(&mut self) {
         self.curses.main_win.clear();
-        self.curses.print_status(&self.settings, &self.current_month, &self.days_off);
         let date = self.current_day;
         self.current_day = self.select_day(date);
+        self.curses.print_status(&self.settings, &self.current_month, &self.days_off);
     }
 
     fn first_day_of_month_at_current_weekday(&self) -> NaiveDate {
@@ -100,7 +100,8 @@ impl<'a> Navigator<'a> {
                 date
             },
             None => {
-                self.current_month = FlexMonth::load(date.year(), date.month(), &self.settings);
+                self.current_month = FlexMonth::load(date.year(), (date.month() + 1) % 12,
+                                                     &self.settings);
                 self.select_day(date)
             }
         }
