@@ -276,6 +276,7 @@ impl<'a> Navigator<'a> {
         self.curses.week_win.refresh();
 
         let mut done = false;
+        let mut go_to_today = false;
         let mut digit_idx = 0;
         while !done {
             let old_status = d.status;
@@ -284,6 +285,10 @@ impl<'a> Navigator<'a> {
                     match c {
                         Input::Character('\x1B') |
                         Input::Character('\n') => done = true,
+                        Input::KeyHome => {
+                            done = true;
+                            go_to_today = true;
+                        },
                         Input::KeyRight => {
                             digit_idx = 0;
                             if cur_field < self.curses.fields.len() - 1 {
@@ -318,8 +323,12 @@ impl<'a> Navigator<'a> {
             self.update_display_post_edit(old_status, d);
         }
         // remove any reverse attr
-        let date = self.current_day;
-        self.select_day(date);
+        let cur_day = self.current_day;
+        self.select_day(if go_to_today {
+            Local::today().naive_local()
+        } else {
+            cur_day
+        });
     }
 
     pub fn change_status(&mut self, c: char) {
