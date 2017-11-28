@@ -1,22 +1,25 @@
 use std::iter::Iterator;
-use chrono::{ NaiveDate };
+use chrono::NaiveDate;
 pub struct NaiveDateIter {
     start: NaiveDate,
-    end: NaiveDate
+    end: NaiveDate,
 }
 
 impl NaiveDateIter {
     pub fn new(start: NaiveDate, end: NaiveDate) -> NaiveDateIter {
-        NaiveDateIter { start: start, end: end }
+        NaiveDateIter {
+            start,
+            end,
+        }
     }
 }
 
 impl Iterator for NaiveDateIter {
     type Item = NaiveDate;
     fn next(&mut self) -> Option<NaiveDate> {
-        
+
         if self.start.gt(&self.end) {
-            None 
+            None
         } else {
             let res = self.start;
             self.start = self.start.succ();

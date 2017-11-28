@@ -13,8 +13,7 @@ pub struct FlexMonth {
     pub year: i32,
     pub month: u32,
     pub one_week_goal: i64,
-    pub balance: i64
-    // TODO switch i64 to Duration when chrono supports Serialize/Deserialize
+    pub balance: i64, // TODO switch i64 to Duration when chrono supports Serialize/Deserialize
 }
 
 impl Display for FlexMonth {
@@ -27,33 +26,42 @@ impl Display for FlexMonth {
 }
 
 pub fn next_month(year: i32, month: u32) -> (i32, u32) {
-    if month == 12 { (year + 1, 1) } else { (year, month + 1) }
+    if month == 12 {
+        (year + 1, 1)
+    } else {
+        (year, month + 1)
+    }
 }
 
 pub fn prev_month(year: i32, month: u32) -> (i32, u32) {
-    if month == 1 { (year - 1, 12) } else { (year, month - 1) }
+    if month == 1 {
+        (year - 1, 12)
+    } else {
+        (year, month - 1)
+    }
 }
 
 fn find_next_monday(day: NaiveDate) -> NaiveDate {
     match day.weekday() {
         Weekday::Mon => day,
-        _ => find_next_monday(day.succ())
+        _ => find_next_monday(day.succ()),
     }
 }
 
 fn find_prec_monday(day: NaiveDate) -> NaiveDate {
     match day.weekday() {
         Weekday::Mon => day,
-        _ => find_prec_monday(day.pred())
+        _ => find_prec_monday(day.pred()),
     }
 }
 
 pub fn find_first_monday_of_grid(year: i32, month: u32) -> NaiveDate {
+    println!("find_first_monday_of_grid: year={}, month={}", year, month);
     let first_day = NaiveDate::from_ymd(year, month, 1);
     match first_day.weekday() {
         Weekday::Mon => first_day,
         Weekday::Sat | Weekday::Sun => find_next_monday(first_day),
-        _ => find_prec_monday(first_day)
+        _ => find_prec_monday(first_day),
     }
 }
 
@@ -62,8 +70,10 @@ pub fn find_last_sunday_for(year: i32, month: u32) -> NaiveDate {
     let first_day_next_month = NaiveDate::from_ymd(y, m, 1);
     match first_day_next_month.weekday() {
         Weekday::Sun => first_day_next_month,
-        _ => find_first_monday_of_grid(first_day_next_month.year(),
-                                       first_day_next_month.month()).pred()
+        _ => {
+            find_first_monday_of_grid(first_day_next_month.year(), first_day_next_month.month())
+                .pred()
+        }
     }
 }
 
@@ -91,7 +101,7 @@ impl FlexMonth {
             year: year,
             month: month,
             one_week_goal: settings.week_goal,
-            balance: balance
+            balance: balance,
         }
     }
 
@@ -105,7 +115,9 @@ impl FlexMonth {
             Ok(file) => file,
         };
 
-        file.write_all(self.to_json().as_bytes()).expect("Unable to write data");
+        file.write_all(self.to_json().as_bytes()).expect(
+            "Unable to write data",
+        );
         file.write("\n".as_bytes()).expect("Unable to write");
     }
 
@@ -127,8 +139,12 @@ impl FlexMonth {
     pub fn get_week_with_day(&self, d: NaiveDate) -> Option<(&FlexDay, &FlexWeek, i32)> {
         let mut week_number = 1;
         for w in &self.weeks {
-            if let Some(day) = w.days.iter().find(
-                |&&day| if let Some(date) = day.date { date == d } else { false }) {
+            if let Some(day) = w.days.iter().find(|&&day| if let Some(date) = day.date {
+                date == d
+            } else {
+                false
+            })
+            {
                 return Some((&day, &w, week_number));
             }
             week_number += 1;
@@ -158,8 +174,7 @@ impl FlexMonth {
 }
 
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use super::*;
     use timedata;
 
@@ -167,7 +182,8 @@ mod tests
     fn get_week_with_day_test() {
         let settings: Settings = Default::default();
         let m = FlexMonth::new(2017, 05, &settings);
-        let w = m.get_week_with_day(NaiveDate::from_ymd(2017, 05, 10)).unwrap();
+        let w = m.get_week_with_day(NaiveDate::from_ymd(2017, 05, 10))
+            .unwrap();
         assert_eq!(w.1.days[0].date.unwrap().day(), 8);
     }
 
@@ -230,33 +246,69 @@ mod tests
         let mut month = FlexMonth::new(2017, 05, &settings);
 
         assert_eq!(month.weeks.len(), 4);
-        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 05, 01)));
-        assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 05, 28)));
+        assert_eq!(
+            month.weeks[0].days[0].date,
+            Some(NaiveDate::from_ymd(2017, 05, 01))
+        );
+        assert_eq!(
+            month.weeks[3].days[6].date,
+            Some(NaiveDate::from_ymd(2017, 05, 28))
+        );
 
         month = FlexMonth::new(2017, 02, &settings);
         assert_eq!(month.weeks.len(), 4);
-        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 01, 30)));
-        assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 02, 26)));
+        assert_eq!(
+            month.weeks[0].days[0].date,
+            Some(NaiveDate::from_ymd(2017, 01, 30))
+        );
+        assert_eq!(
+            month.weeks[3].days[6].date,
+            Some(NaiveDate::from_ymd(2017, 02, 26))
+        );
 
         month = FlexMonth::new(2017, 04, &settings);
         assert_eq!(month.weeks.len(), 4);
-        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 04, 03)));
-        assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 04, 30)));
+        assert_eq!(
+            month.weeks[0].days[0].date,
+            Some(NaiveDate::from_ymd(2017, 04, 03))
+        );
+        assert_eq!(
+            month.weeks[3].days[6].date,
+            Some(NaiveDate::from_ymd(2017, 04, 30))
+        );
 
         month = FlexMonth::new(2017, 01, &settings);
         assert_eq!(month.weeks.len(), 4);
-        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2017, 01, 02)));
-        assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2017, 01, 29)));
+        assert_eq!(
+            month.weeks[0].days[0].date,
+            Some(NaiveDate::from_ymd(2017, 01, 02))
+        );
+        assert_eq!(
+            month.weeks[3].days[6].date,
+            Some(NaiveDate::from_ymd(2017, 01, 29))
+        );
 
         month = FlexMonth::new(2016, 11, &settings);
         assert_eq!(month.weeks.len(), 4);
-        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2016, 10, 31)));
-        assert_eq!(month.weeks[3].days[6].date, Some(NaiveDate::from_ymd(2016, 11, 27)));
+        assert_eq!(
+            month.weeks[0].days[0].date,
+            Some(NaiveDate::from_ymd(2016, 10, 31))
+        );
+        assert_eq!(
+            month.weeks[3].days[6].date,
+            Some(NaiveDate::from_ymd(2016, 11, 27))
+        );
 
         month = FlexMonth::new(2016, 12, &settings);
         assert_eq!(month.weeks.len(), 5);
-        assert_eq!(month.weeks[0].days[0].date, Some(NaiveDate::from_ymd(2016, 11, 28)));
-        assert_eq!(month.weeks[4].days[6].date, Some(NaiveDate::from_ymd(2017, 01, 01)));
+        assert_eq!(
+            month.weeks[0].days[0].date,
+            Some(NaiveDate::from_ymd(2016, 11, 28))
+        );
+        assert_eq!(
+            month.weeks[4].days[6].date,
+            Some(NaiveDate::from_ymd(2017, 01, 01))
+        );
     }
 
     #[test]

@@ -56,6 +56,6 @@ pub fn month_to_string(m: u32) -> &'static str {
         10 => "October",
         11 => "November",
         12 => "December",
-        _ => "???"
+        _ => "???",
     }
 }

@@ -30,20 +30,23 @@ impl Default for SettingsDay {
 impl Display for SettingsDay {
     fn fmt(&self, f: &mut Formatter) -> Result {
         let pause = Duration::minutes(self.pause);
-        write!(f, "{}  {:02}:{:02} -> {:02}:{:02} - {:02}:{:02}",
-               weekday_to_string(self.weekday),
-               self.start.hour(),
-               self.start.minute(),
-               self.end.hour(),
-               self.end.minute(),
-               pause.num_hours(),
-               pause.num_minutes() - (pause.num_hours() * 60))
+        write!(
+            f,
+            "{}  {:02}:{:02} -> {:02}:{:02} - {:02}:{:02}",
+            weekday_to_string(self.weekday),
+            self.start.hour(),
+            self.start.minute(),
+            self.end.hour(),
+            self.end.minute(),
+            pause.num_hours(),
+            pause.num_minutes() - (pause.num_hours() * 60)
+        )
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct WeekSchedule {
-    pub sched: Vec<SettingsDay>
+    pub sched: Vec<SettingsDay>,
 }
 
 impl Default for WeekSchedule {
@@ -80,7 +83,7 @@ impl Default for WeekSchedule {
                     end: NaiveTime::from_hms(16, 50, 0),
                     pause: Duration::minutes(30).num_minutes(),
                 },
-            ]
+            ],
         }
     }
 }
@@ -97,14 +100,20 @@ pub struct Settings {
     pub holiday_duration: i64,
     #[serde(default)]
     pub offset: i64,
-    // TODO switch to Duration when chrono supports Serialize/Deserialize
+    // TODO switch to Duration when chrono supports Serialize
 }
 
-fn default_week_goal() -> i64 { Duration::hours(37).num_minutes() }
+fn default_week_goal() -> i64 {
+    Duration::hours(37).num_minutes()
+}
 
-fn default_holiday_duration() -> i64 { default_week_goal() / 5 }
+fn default_holiday_duration() -> i64 {
+    default_week_goal() / 5
+}
 
-fn default_holidays_per_year() -> f32 { 26.0 }
+fn default_holidays_per_year() -> f32 {
+    26.0
+}
 
 impl Default for Settings {
     fn default() -> Settings {
@@ -133,7 +142,9 @@ impl Settings {
         unsafe {
             HOLIDAY_DURATION = self.holiday_duration;
         }
-        file.write_all(self.to_json().as_bytes()).expect("Unable to write data");
+        file.write_all(self.to_json().as_bytes()).expect(
+            "Unable to write data",
+        );
         file.write("\n".as_bytes()).expect("Unable to write \\n");
     }
 
@@ -142,7 +153,9 @@ impl Settings {
             Err(_) => None,
             Ok(mut file) => {
                 let mut json = String::new();
-                file.read_to_string(&mut json).expect("Failed to read settings.json");
+                file.read_to_string(&mut json).expect(
+                    "Failed to read settings.json",
+                );
                 let settings = Settings::from_json(&json);
                 unsafe {
                     HOLIDAY_DURATION = settings.holiday_duration;
@@ -159,8 +172,8 @@ impl Settings {
                 d.weekday = day.weekday();
                 d
             }
-            _ => match self.week_sched.sched.binary_search_by(
-                |flex_day| {
+            _ => {
+                match self.week_sched.sched.binary_search_by(|flex_day| {
                     let num_left = flex_day.weekday.number_from_monday();
                     let num_right = day.weekday().number_from_monday();
                     if flex_day.weekday == day.weekday() {
@@ -172,10 +185,10 @@ impl Settings {
                             Ordering::Less
                         }
                     }
+                }) {
+                    Ok(idx) => self.week_sched.sched[idx],
+                    Err(_) => panic!("couldn't find {:?} in week sched", day.weekday()),
                 }
-            ) {
-                Ok(idx) => self.week_sched.sched[idx],
-                Err(_) => panic!("couldn't find {:?} in week sched", day.weekday()),
             }
         }
     }

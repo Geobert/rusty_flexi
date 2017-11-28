@@ -18,7 +18,7 @@ impl DaysOff {
         DaysOff {
             year: year,
             holidays_left: settings.holidays_per_year,
-            sick_days_taken: 0.0
+            sick_days_taken: 0.0,
         }
     }
 
@@ -28,12 +28,19 @@ impl DaysOff {
 
     pub fn save(&self) {
         let mut file = match File::create(DaysOff::filename(self.year)) {
-            Err(why) => panic!("couldn't create {}: {}", DaysOff::filename(self.year),
-                               why.description()),
+            Err(why) => {
+                panic!(
+                    "couldn't create {}: {}",
+                    DaysOff::filename(self.year),
+                    why.description()
+                )
+            }
             Ok(file) => file,
         };
 
-        file.write_all(self.to_json().as_bytes()).expect("Unable to write data");
+        file.write_all(self.to_json().as_bytes()).expect(
+            "Unable to write data",
+        );
         file.write("\n".as_bytes()).expect("Unable to write \\n");
     }
 
@@ -42,8 +49,10 @@ impl DaysOff {
             Err(_) => DaysOff::new(year, &settings),
             Ok(mut file) => {
                 let mut json = String::new();
-                file.read_to_string(&mut json)
-                    .expect(&format!("Failed to read {}", DaysOff::filename(year)));
+                file.read_to_string(&mut json).expect(&format!(
+                    "Failed to read {}",
+                    DaysOff::filename(year)
+                ));
                 DaysOff::from_json(&json)
             }
         }
@@ -51,8 +60,7 @@ impl DaysOff {
 }
 
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use super::*;
 
     #[test]

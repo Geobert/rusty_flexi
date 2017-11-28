@@ -26,12 +26,16 @@ impl<'a> Curses<'a> {
     pub fn new(window: &'a Window) -> Curses {
         Curses {
             main_win: window,
-            week_win: window.subwin(11, 48, 2, 2).expect("Week window creation failed"),
-            stat_win: window.subwin(12, 25, 1, 50).expect("Status window creation failed"),
+            week_win: window.subwin(11, 48, 2, 2).expect(
+                "Week window creation failed",
+            ),
+            stat_win: window.subwin(12, 25, 1, 50).expect(
+                "Status window creation failed",
+            ),
             fields: [0, 16, 19, 25, 28, 33, 36],
             option_win: None,
             sub_option_days_off: None,
-            sub_option_sched: None
+            sub_option_sched: None,
         }
     }
 
@@ -48,9 +52,17 @@ impl<'a> Curses<'a> {
         let month_str = month_to_string(flex_month.month);
         self.week_win.mv(0, 0);
         self.week_win.clrtoeol();
-        self.week_win.mvprintw(0, 48 / 2 - (month_str.len() as i32 + 11) / 2,
-                               &format!("{} {} ({}/{})", month_str, flex_month.year,
-                                        cur_week, flex_month.weeks.len()));
+        self.week_win.mvprintw(
+            0,
+            48 / 2 - (month_str.len() as i32 + 11) / 2,
+            &format!(
+                "{} {} ({}/{})",
+                month_str,
+                flex_month.year,
+                cur_week,
+                flex_month.weeks.len()
+            ),
+        );
     }
 
     // print week, BOLD on today's line
@@ -80,7 +92,9 @@ impl<'a> Curses<'a> {
                         self.week_win.printw(&d.to_string());
                         self.week_win.attroff(A_DIM);
                     }
-                    _ => { self.week_win.printw(&d.to_string()); }
+                    _ => {
+                        self.week_win.printw(&d.to_string());
+                    }
                 };
             }
             y += 1;
@@ -125,26 +139,26 @@ impl<'a> Curses<'a> {
         match cur_field {
             0 => {
                 self.week_win.printw(&d.status_str());
-            },
+            }
             1 => {
                 self.print_time(d.start.hour(), d.status);
-            },
+            }
             2 => {
                 self.print_time(d.start.minute(), d.status);
-            },
+            }
             3 => {
                 self.print_time(d.end.hour(), d.status);
-            },
+            }
             4 => {
                 self.print_time(d.end.minute(), d.status);
-            },
+            }
             5 => {
                 self.print_time((d.pause / 60) as u32, d.status);
-            },
+            }
             6 => {
                 self.print_time((d.pause - (d.pause / 60) * 60) as u32, d.status);
-            },
-            _ => { unreachable!() },
+            }
+            _ => unreachable!(),
         }
         self.week_win.attroff(A_REVERSE);
     }
@@ -157,37 +171,74 @@ impl<'a> Curses<'a> {
         self.stat_win.attron(A_UNDERLINE);
         let stat_title = format!("{} statistics", month_to_string(m.month));
         let width = self.stat_win.get_max_x();
-        self.stat_win.mvprintw(start_y, width / 2 - stat_title.len() as i32 / 2, &stat_title);
+        self.stat_win.mvprintw(
+            start_y,
+            width / 2 - stat_title.len() as i32 / 2,
+            &stat_title,
+        );
         self.stat_win.attroff(A_UNDERLINE);
         let goal = settings.week_goal * m.weeks.len() as i64;
         let total = m.total_minute();
         let sign = if m.balance < 0 { "-" } else { " " };
-        self.stat_win.mvprintw(start_y + 2, pad_x,
-                               &format!("Target:{: >8}{:02}:{:02}", "",
-                                        goal / 60, goal - (goal / 60) * 60));
-        self.stat_win.mvprintw(start_y + 3, pad_x,
-                               &format!("Total:{: >9}{:02}:{:02}", "",
-                                        total / 60, total - (total / 60) * 60));
-        self.stat_win.mvprintw(start_y + 4, pad_x,
-                               &format!("Balance: "));
+        self.stat_win.mvprintw(
+            start_y + 2,
+            pad_x,
+            &format!(
+                "Target:{: >8}{:02}:{:02}",
+                "",
+                goal / 60,
+                goal - (goal / 60) * 60
+            ),
+        );
+        self.stat_win.mvprintw(
+            start_y + 3,
+            pad_x,
+            &format!(
+                "Total:{: >9}{:02}:{:02}",
+                "",
+                total / 60,
+                total - (total / 60) * 60
+            ),
+        );
+        self.stat_win.mvprintw(
+            start_y + 4,
+            pad_x,
+            &format!("Balance: "),
+        );
         if m.balance < 0 {
             self.stat_win.attron(COLOR_PAIR(1));
         }
-        self.stat_win.mvprintw(start_y + 4, pad_x + 15,
-                               &format!("{}{:02}:{:02}", sign, (m.balance / 60).abs(),
-                                        (m.balance - (m.balance / 60) * 60).abs()));
+        self.stat_win.mvprintw(
+            start_y + 4,
+            pad_x + 15,
+            &format!(
+                "{}{:02}:{:02}",
+                sign,
+                (m.balance / 60).abs(),
+                (m.balance - (m.balance / 60) * 60).abs()
+            ),
+        );
         if m.balance < 0 {
             self.stat_win.attroff(COLOR_PAIR(1));
         }
         let days_off_title = format!("Days off ({})", m.year);
         self.stat_win.attron(A_UNDERLINE);
-        self.stat_win.mvprintw(start_y + 6, width / 2 - days_off_title.len() as i32 / 2,
-                               &days_off_title);
+        self.stat_win.mvprintw(
+            start_y + 6,
+            width / 2 - days_off_title.len() as i32 / 2,
+            &days_off_title,
+        );
         self.stat_win.attroff(A_UNDERLINE);
-        self.stat_win.mvprintw(start_y + 8, pad_x, &format!("Holidays left: {: >6}",
-                                                            off.holidays_left));
-        self.stat_win.mvprintw(start_y + 9, pad_x, &format!("Sick days taken: {: >4}",
-                                                            off.sick_days_taken));
+        self.stat_win.mvprintw(
+            start_y + 8,
+            pad_x,
+            &format!("Holidays left: {: >6}", off.holidays_left),
+        );
+        self.stat_win.mvprintw(
+            start_y + 9,
+            pad_x,
+            &format!("Sick days taken: {: >4}", off.sick_days_taken),
+        );
         self.stat_win.refresh();
     }
 
@@ -200,17 +251,24 @@ impl<'a> Curses<'a> {
     pub fn open_settings(&mut self, settings: &Settings, off: &DaysOff) {
         let width = 60;
         let height = 14;
-        let option = self.main_win.subwin(height, width, 0, (self.week_win.get_max_x() +
-            self.stat_win.get_max_x()) / 2 - width / 2)
+        let option = self.main_win
+            .subwin(
+                height,
+                width,
+                0,
+                (self.week_win.get_max_x() + self.stat_win.get_max_x()) / 2 - width / 2,
+            )
             .expect("Error while creating options' window");
         option.overlay(self.main_win);
         option.clear();
         self.print_settings_title(&option, width);
         let beg_y = 3;
         let sub_height = height - beg_y - 1;
-        let sched = option.derwin(sub_height, 28, beg_y, 2)
-            .expect("Error while creating sched option window");
-        let days_off = option.derwin(sub_height, 25, beg_y, sched.get_max_x() + 4)
+        let sched = option.derwin(sub_height, 28, beg_y, 2).expect(
+            "Error while creating sched option window",
+        );
+        let days_off = option
+            .derwin(sub_height, 25, beg_y, sched.get_max_x() + 4)
             .expect("Error while creating days off option window");
 
         self.sub_option_sched = Some(sched);
@@ -244,8 +302,15 @@ impl<'a> Curses<'a> {
         }
         cur_y += 1;
         let target = Duration::minutes(settings.week_goal);
-        sched.mvprintw(cur_y, 0, &format!("Target per week:      {:02}:{:02}", target.num_hours(),
-                                          target.num_minutes() - (target.num_hours() * 60)));
+        sched.mvprintw(
+            cur_y,
+            0,
+            &format!(
+                "Target per week:      {:02}:{:02}",
+                target.num_hours(),
+                target.num_minutes() - (target.num_hours() * 60)
+            ),
+        );
         self.sub_option_sched = Some(sched);
     }
 
@@ -259,23 +324,50 @@ impl<'a> Curses<'a> {
         off.mvprintw(cur_y, off.get_max_x() / 2 - title.len() as i32 / 2, title);
         off.attroff(A_UNDERLINE);
         cur_y += 2;
-        off.mvprintw(cur_y, 2, &format!("Holidays per year: {: >4}", settings.holidays_per_year));
+        off.mvprintw(
+            cur_y,
+            2,
+            &format!("Holidays per year: {: >4}", settings.holidays_per_year),
+        );
         cur_y += 1;
-        off.mvprintw(cur_y, 2, &format!("Holidays left: {: >8}", days_off.holidays_left));
+        off.mvprintw(
+            cur_y,
+            2,
+            &format!("Holidays left: {: >8}", days_off.holidays_left),
+        );
         cur_y += 1;
-        off.mvprintw(cur_y, 2, &format!("Sick days taken: {: >6}", days_off.sick_days_taken));
+        off.mvprintw(
+            cur_y,
+            2,
+            &format!("Sick days taken: {: >6}", days_off.sick_days_taken),
+        );
 
         self.sub_option_days_off = Some(off);
     }
 
-    pub fn highlight_option(&mut self, cur_idx: i32, cur_field: i32,
-                            settings: &Settings, off: &DaysOff) {
+    pub fn highlight_option(
+        &mut self,
+        cur_idx: i32,
+        cur_field: i32,
+        settings: &Settings,
+        off: &DaysOff,
+    ) {
         let x_coords: HashMap<i32, i32> = [(0, 7), (1, 10), (2, 16), (3, 19), (4, 24), (5, 27)]
-            .iter().cloned().collect();
+            .iter()
+            .cloned()
+            .collect();
         let win = self.option_win.take().unwrap();
         win.clear();
-        win.border('\u{2551}', '\u{2551}', '\u{2550}', '\u{2550}', '\u{2554}', '\u{2557}',
-                   '\u{255A}', '\u{255D}');
+        win.border(
+            '\u{2551}',
+            '\u{2551}',
+            '\u{2550}',
+            '\u{2550}',
+            '\u{2554}',
+            '\u{2557}',
+            '\u{255A}',
+            '\u{255D}',
+        );
         // reset any reverse attr
         self.print_settings_title(&win, win.get_max_x());
         self.print_sched(&settings);
@@ -283,7 +375,11 @@ impl<'a> Curses<'a> {
 
         // cur_idx == 5 means target week, special field management
         let y = cur_idx + 5 + if cur_idx == 5 { 1 } else { 0 };
-        let x = if cur_field > 5 { 55 } else { x_coords[&cur_field] };
+        let x = if cur_field > 5 {
+            55
+        } else {
+            x_coords[&cur_field]
+        };
         win.mv(y, x);
         win.attron(A_REVERSE);
         let value = match cur_field {
@@ -292,9 +388,9 @@ impl<'a> Curses<'a> {
                     0 => settings.holidays_per_year as f32,
                     1 => off.holidays_left,
                     2 => off.sick_days_taken,
-                    _ => unreachable!()
+                    _ => unreachable!(),
                 }
-            },
+            }
             f if f <= 5 => {
                 if cur_idx < 5 {
                     let d = settings.week_sched.sched[cur_idx as usize];
@@ -305,7 +401,7 @@ impl<'a> Curses<'a> {
                         3 => d.end.minute() as f32,
                         4 => (d.pause / 60) as f32,
                         5 => (d.pause - (d.pause / 60) * 60) as f32,
-                        _ => unreachable!()
+                        _ => unreachable!(),
                     }
                 } else {
                     let t = Duration::minutes(settings.week_goal);
@@ -316,7 +412,7 @@ impl<'a> Curses<'a> {
                         (t.num_minutes() - t.num_hours() * 60) as f32
                     }
                 }
-            },
+            }
             _ => unreachable!(),
         };
         win.printw(&if value == 0.0 && cur_field > 5 {
