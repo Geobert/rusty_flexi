@@ -111,6 +111,7 @@ impl<'a> Navigator<'a> {
                     next_month(date.year(), date.month())
                 };
                 self.current_month = FlexMonth::load(year, month, &self.settings);
+                );
                 self.select_day(date)
             }
         }
@@ -143,8 +144,8 @@ impl<'a> Navigator<'a> {
         if self.current_day <
             find_first_monday_of_grid(self.current_month.year, self.current_month.month)
         {
-            self.change_month(false)
-        } else {
+                self.change_month(false)
+            } else {
             let date = self.current_day;
             self.select_day(date);
         }
@@ -155,8 +156,8 @@ impl<'a> Navigator<'a> {
         if self.current_day >
             find_last_sunday_for(self.current_month.year, self.current_month.month)
         {
-            self.change_month(true)
-        } else {
+                self.change_month(true)
+            } else {
             let date = self.current_day;
             self.select_day(date);
         }
@@ -247,12 +248,19 @@ impl<'a> Navigator<'a> {
 
     pub fn edit_day(&mut self) {
         let mut d = self.get_current_day().clone();
+        let selected_day = d.date.expect("edit_day: must have date");
         let now = Local::now().naive_utc();
+        let today = now.date();
+        let now = NaiveTime::from_hms(now.time().hour(), now.time().minute(), 0);
         let cur_y = self.cur_y_in_week(&d);
         let mut cur_field: usize = match d.status {
             DayStatus::Weekend | DayStatus::Sick | DayStatus::Holiday => 0,
             _ => {
                 if now.time() < NaiveTime::from_hms(12, 00, 00) {
+                    4
+                } else if selected_day > today {
+                    2
+                } else if now < NaiveTime::from_hms(12, 00, 00) {
                     2 // set to start min field
                 } else {
                     4 // set to end min field
@@ -264,6 +272,7 @@ impl<'a> Navigator<'a> {
         self.curses.week_win.refresh();
 
         let mut done = false;
+        let mut go_to_today = false;
         let mut digit_idx = 0;
         while !done {
             let old_status = d.status;
@@ -272,6 +281,10 @@ impl<'a> Navigator<'a> {
                     match c {
                         Input::Character('\x1B') |
                         Input::Character('\n') => done = true,
+                        Input::KeyHome => {
+                            done = true;
+                            go_to_today = true;
+                        },
                         Input::KeyRight => {
                             digit_idx = 0;
                             if cur_field < self.curses.fields.len() - 1 {
@@ -306,8 +319,12 @@ impl<'a> Navigator<'a> {
             self.update_display_post_edit(old_status, d);
         }
         // remove any reverse attr
-        let date = self.current_day;
-        self.select_day(date);
+        let cur_day = self.current_day;
+        self.select_day(if go_to_today {
+            Local::today().naive_local()
+        } else {
+            cur_day
+        });
     }
 
     pub fn change_status(&mut self, c: char) {

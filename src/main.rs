@@ -38,7 +38,8 @@ fn generate_xmas_holidays(today: NaiveDate, settings: &Settings) {
     {
         let (mut january, from_json) = FlexMonth::load_with_flag(today.year(), 01, &settings);
         if !from_json {
-            // newly created month, auto set holiday as we always have 2 days of holidays in january
+            // newly created month, auto set holiday as we always have
+            // 2 days of holidays in january
             let mut week_to_edit = january.weeks[0].clone();
             week_to_edit[0].status = DayStatus::Holiday;
             week_to_edit[1].status = DayStatus::Holiday;
@@ -107,6 +108,8 @@ fn main() {
                         navigator.select_day(today);
                     }
                     Input::Character(c) if c == 'b' || c == 'e' => {
+                        let today = chrono::Local::today().naive_local();
+                        navigator.select_day(today);
                         let offset = Duration::minutes(navigator.settings.offset);
                         let t = chrono::Local::now().naive_local().time();
                         let t = NaiveTime::from_hms(t.hour(), t.minute(), 0); // clear seconds
