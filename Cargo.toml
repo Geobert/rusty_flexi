@@ -8,5 +8,5 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
-pdcurses-sys = "0.4"
-pancurses = "0.9"
+pdcurses-sys = "0.7"
+pancurses = "0.13"
