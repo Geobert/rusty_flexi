@@ -1,5 +1,5 @@
 use timedata::*;
-use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Weekday};
+use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Weekday, Timelike};
 use settings::Settings;
 use super::Curses;
 use pancurses::{Input, Window, COLOR_PAIR};
@@ -110,8 +110,7 @@ impl<'a> Navigator<'a> {
                 } else {
                     next_month(date.year(), date.month())
                 };
-                self.current_month = FlexMonth::load(year, month, &self.settings);
-                );
+                self.current_month = FlexMonth::load(year, month, &self.settings);                
                 self.select_day(date)
             }
         }
@@ -144,8 +143,8 @@ impl<'a> Navigator<'a> {
         if self.current_day <
             find_first_monday_of_grid(self.current_month.year, self.current_month.month)
         {
-                self.change_month(false)
-            } else {
+            self.change_month(false)
+        } else {
             let date = self.current_day;
             self.select_day(date);
         }
@@ -156,8 +155,8 @@ impl<'a> Navigator<'a> {
         if self.current_day >
             find_last_sunday_for(self.current_month.year, self.current_month.month)
         {
-                self.change_month(true)
-            } else {
+            self.change_month(true)
+        } else {
             let date = self.current_day;
             self.select_day(date);
         }
@@ -248,15 +247,15 @@ impl<'a> Navigator<'a> {
 
     pub fn edit_day(&mut self) {
         let mut d = self.get_current_day().clone();
-        let selected_day = d.date.expect("edit_day: must have date");
+		let selected_day = d.date.expect("edit_day: must have date");
         let now = Local::now().naive_utc();
-        let today = now.date();
-        let now = NaiveTime::from_hms(now.time().hour(), now.time().minute(), 0);
+		let today = now.date();
+		let now = NaiveTime::from_hms(now.time().hour(), now.time().minute(), 0);
         let cur_y = self.cur_y_in_week(&d);
         let mut cur_field: usize = match d.status {
             DayStatus::Weekend | DayStatus::Sick | DayStatus::Holiday => 0,
             _ => {
-                if now.time() < NaiveTime::from_hms(12, 00, 00) {
+                if selected_day < today {
                     4
                 } else if selected_day > today {
                     2
