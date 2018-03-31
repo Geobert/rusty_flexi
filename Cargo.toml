@@ -1,6 +1,6 @@
 [package]
 name = "rusty_flexi"
-version = "0.3.4"
+version = "0.3.5"
 authors = ["Geobert Quach <geobert@pm.me>"]
 
 [dependencies]
