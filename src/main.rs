@@ -1,10 +1,10 @@
-//#![windows_subsystem = "windows"]
+#![windows_subsystem = "windows"]
 #[macro_use]
 extern crate serde_derive;
-extern crate serde;
-extern crate serde_json;
 extern crate chrono;
 extern crate pancurses;
+extern crate serde;
+extern crate serde_json;
 
 mod timedata;
 mod settings;
@@ -13,9 +13,9 @@ mod curses;
 
 use pancurses::*;
 use curses::*;
-use chrono::{Duration, NaiveDate, Datelike, NaiveTime, Timelike};
+use chrono::{Datelike, Duration, NaiveDate, NaiveTime, Timelike};
 use std::ops::{Add, Sub};
-use timedata::{FlexMonth, DayStatus};
+use timedata::{DayStatus, FlexMonth};
 use settings::Settings;
 
 fn generate_xmas_holidays(today: NaiveDate, settings: &Settings) {
@@ -74,8 +74,7 @@ fn main() {
         match window.getch() {
             Some(c) => {
                 match c {
-                    Input::Character('q') |
-                    Input::Character('\x1B') => done = true,
+                    Input::Character('q') | Input::Character('\x1B') => done = true,
                     Input::KeyUp => {
                         navigator.select_prev_day();
                     }
@@ -109,6 +108,7 @@ fn main() {
                     }
                     Input::Character(c) if c == 'b' || c == 'e' => {
                         let today = chrono::Local::today().naive_local();
+                        println!("BEGIN TEST");
                         navigator.select_day(today);
                         let offset = Duration::minutes(navigator.settings.offset);
                         let t = chrono::Local::now().naive_local().time();

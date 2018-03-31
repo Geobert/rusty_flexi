@@ -1,7 +1,7 @@
 [package]
 name = "rusty_flexi"
-version = "0.3.3"
-authors = ["Geobert Quach <geobert@gmail.com>"]
+version = "0.3.4"
+authors = ["Geobert Quach <geobert@pm.me>"]
 
 [dependencies]
 serde = "1.0"
@@ -9,4 +9,4 @@ serde_derive = "1.0"
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 pdcurses-sys = "0.7"
-pancurses = "0.13"
+pancurses = "0.15"

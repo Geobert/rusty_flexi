@@ -1,5 +1,5 @@
 use timedata::*;
-use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Weekday};
+use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Weekday, Timelike};
 use settings::Settings;
 use super::Curses;
 use pancurses::{Input, Window, COLOR_PAIR};
@@ -60,11 +60,8 @@ impl<'a> Navigator<'a> {
         self.curses.main_win.clear();
         let date = self.current_day;
         self.current_day = self.select_day(date);
-        self.curses.print_status(
-            &self.settings,
-            &self.current_month,
-            &self.days_off,
-        );
+        self.curses
+            .print_status(&self.settings, &self.current_month, &self.days_off);
     }
 
     fn first_day_of_month_at_current_weekday(&self) -> NaiveDate {
@@ -74,9 +71,8 @@ impl<'a> Navigator<'a> {
     }
 
     fn last_day_of_month_at_current_weekday(&self) -> NaiveDate {
-        self.current_month.weeks[self.current_month.weeks.len() - 1][self.current_day
-                                                                         .weekday()
-                                                                         .num_days_from_monday()]
+        self.current_month.weeks[self.current_month.weeks.len() - 1]
+            [self.current_day.weekday().num_days_from_monday()]
             .date
             .expect("change_month: should have date")
     }
@@ -87,10 +83,8 @@ impl<'a> Navigator<'a> {
             Some((_, w, week_nb)) => {
                 self.curses.print_week_header(&month, week_nb);
                 self.curses.print_week(&w, &date);
-                self.curses.print_week_total(
-                    &w,
-                    w.total_minutes() < self.settings.week_goal,
-                );
+                self.curses
+                    .print_week_total(&w, w.total_minutes() < self.settings.week_goal);
                 Some(date)
             }
             None => None,
@@ -106,12 +100,11 @@ impl<'a> Navigator<'a> {
             }
             None => {
                 let (year, month) = if date.month() < cur_month.month {
-                    prev_month(date.year(), date.month())
+                    prev_month(cur_month.year, cur_month.month)
                 } else {
-                    next_month(date.year(), date.month())
+                    next_month(cur_month.year, cur_month.month)
                 };
                 self.current_month = FlexMonth::load(year, month, &self.settings);
-                );
                 self.select_day(date)
             }
         }
@@ -141,11 +134,11 @@ impl<'a> Navigator<'a> {
 
     pub fn select_prev_week(&mut self) {
         self.current_day = self.current_day.sub(Duration::days(7));
-        if self.current_day <
-            find_first_monday_of_grid(self.current_month.year, self.current_month.month)
+        if self.current_day
+            < find_first_monday_of_grid(self.current_month.year, self.current_month.month)
         {
-                self.change_month(false)
-            } else {
+            self.change_month(false)
+        } else {
             let date = self.current_day;
             self.select_day(date);
         }
@@ -153,11 +146,11 @@ impl<'a> Navigator<'a> {
 
     pub fn select_next_week(&mut self) {
         self.current_day = self.current_day.add(Duration::days(7));
-        if self.current_day >
-            find_last_sunday_for(self.current_month.year, self.current_month.month)
+        if self.current_day
+            > find_last_sunday_for(self.current_month.year, self.current_month.month)
         {
-                self.change_month(true)
-            } else {
+            self.change_month(true)
+        } else {
             let date = self.current_day;
             self.select_day(date);
         }
@@ -176,50 +169,37 @@ impl<'a> Navigator<'a> {
             self.last_day_of_month_at_current_weekday()
         };
         self.current_day = self.select_day(date);
-        self.curses.print_status(
-            &self.settings,
-            &self.current_month,
-            &self.days_off,
-        );
+        self.curses
+            .print_status(&self.settings, &self.current_month, &self.days_off);
     }
 
     fn update_days_off(&mut self, old_status: DayStatus, new_status: DayStatus) {
         if old_status != new_status {
             match old_status {
-                DayStatus::Worked => {
-                    match new_status {
-                        DayStatus::Holiday => self.days_off.holidays_left -= 1.0,
-                        DayStatus::Half => self.days_off.holidays_left -= 0.5,
-                        DayStatus::Sick => self.days_off.sick_days_taken -= 1.0,
-                        DayStatus::Weekend | DayStatus::Worked => {}
+                DayStatus::Worked => match new_status {
+                    DayStatus::Holiday => self.days_off.holidays_left -= 1.0,
+                    DayStatus::Half => self.days_off.holidays_left -= 0.5,
+                    DayStatus::Sick => self.days_off.sick_days_taken -= 1.0,
+                    DayStatus::Weekend | DayStatus::Worked => {}
+                },
+                DayStatus::Holiday => match new_status {
+                    DayStatus::Worked | DayStatus::Weekend => self.days_off.holidays_left += 1.0,
+                    DayStatus::Half => self.days_off.holidays_left += 0.5,
+                    DayStatus::Sick => {
+                        self.days_off.holidays_left += 1.0;
+                        self.days_off.sick_days_taken -= 1.0;
                     }
-                }
-                DayStatus::Holiday => {
-                    match new_status {
-                        DayStatus::Worked | DayStatus::Weekend => {
-                            self.days_off.holidays_left += 1.0
-                        }
-                        DayStatus::Half => self.days_off.holidays_left += 0.5,
-                        DayStatus::Sick => {
-                            self.days_off.holidays_left += 1.0;
-                            self.days_off.sick_days_taken -= 1.0;
-                        }
-                        DayStatus::Holiday => {}
+                    DayStatus::Holiday => {}
+                },
+                DayStatus::Half => match new_status {
+                    DayStatus::Worked | DayStatus::Weekend => self.days_off.holidays_left += 0.5,
+                    DayStatus::Holiday => self.days_off.holidays_left -= 0.5,
+                    DayStatus::Sick => {
+                        self.days_off.holidays_left += 0.5;
+                        self.days_off.sick_days_taken -= 1.0;
                     }
-                }
-                DayStatus::Half => {
-                    match new_status {
-                        DayStatus::Worked | DayStatus::Weekend => {
-                            self.days_off.holidays_left += 0.5
-                        }
-                        DayStatus::Holiday => self.days_off.holidays_left -= 0.5,
-                        DayStatus::Sick => {
-                            self.days_off.holidays_left += 0.5;
-                            self.days_off.sick_days_taken -= 1.0;
-                        }
-                        DayStatus::Half => {}
-                    }
-                }
+                    DayStatus::Half => {}
+                },
                 DayStatus::Sick => {
                     self.days_off.sick_days_taken += 1.0;
                     match new_status {
@@ -256,7 +236,7 @@ impl<'a> Navigator<'a> {
         let mut cur_field: usize = match d.status {
             DayStatus::Weekend | DayStatus::Sick | DayStatus::Holiday => 0,
             _ => {
-                if now.time() < NaiveTime::from_hms(12, 00, 00) {
+                if now < NaiveTime::from_hms(12, 00, 00) {
                     4
                 } else if selected_day > today {
                     2
@@ -277,43 +257,40 @@ impl<'a> Navigator<'a> {
         while !done {
             let old_status = d.status;
             match self.curses.getch() {
-                Some(c) => {
-                    match c {
-                        Input::Character('\x1B') |
-                        Input::Character('\n') => done = true,
-                        Input::KeyHome => {
-                            done = true;
-                            go_to_today = true;
-                        },
-                        Input::KeyRight => {
-                            digit_idx = 0;
-                            if cur_field < self.curses.fields.len() - 1 {
-                                cur_field += 1;
-                                self.curses.highlight_current_field(cur_field, &d, cur_y);
-                            }
-                        }
-                        Input::KeyLeft => {
-                            digit_idx = 0;
-                            if cur_field > 0 {
-                                cur_field -= 1;
-                                self.curses.highlight_current_field(cur_field, &d, cur_y);
-                            }
-                        }
-                        Input::KeyUp | Input::KeyDown => {
-                            digit_idx = 0;
-                            editor::process_key_up_down(cur_field, c == Input::KeyUp, &mut d);
+                Some(c) => match c {
+                    Input::Character('\x1B') | Input::Character('\n') => done = true,
+                    Input::KeyHome => {
+                        done = true;
+                        go_to_today = true;
+                    }
+                    Input::KeyRight => {
+                        digit_idx = 0;
+                        if cur_field < self.curses.fields.len() - 1 {
+                            cur_field += 1;
                             self.curses.highlight_current_field(cur_field, &d, cur_y);
                         }
-                        Input::Character(c) if (c >= '0' && c <= '9') || c == '\u{8}' => {
-                            if cur_field > 0 {
-                                editor::process_digit_input(cur_field, c, digit_idx, &mut d);
-                                digit_idx = (digit_idx + 1) % 2;
-                                self.curses.highlight_current_field(cur_field, &d, cur_y);
-                            }
-                        }
-                        _ => println!("unknown: {:?}", c),
                     }
-                }
+                    Input::KeyLeft => {
+                        digit_idx = 0;
+                        if cur_field > 0 {
+                            cur_field -= 1;
+                            self.curses.highlight_current_field(cur_field, &d, cur_y);
+                        }
+                    }
+                    Input::KeyUp | Input::KeyDown => {
+                        digit_idx = 0;
+                        editor::process_key_up_down(cur_field, c == Input::KeyUp, &mut d);
+                        self.curses.highlight_current_field(cur_field, &d, cur_y);
+                    }
+                    Input::Character(c) if (c >= '0' && c <= '9') || c == '\u{8}' => {
+                        if cur_field > 0 {
+                            editor::process_digit_input(cur_field, c, digit_idx, &mut d);
+                            digit_idx = (digit_idx + 1) % 2;
+                            self.curses.highlight_current_field(cur_field, &d, cur_y);
+                        }
+                    }
+                    _ => println!("unknown: {:?}", c),
+                },
                 None => {}
             }
             self.update_display_post_edit(old_status, d);
@@ -384,21 +361,16 @@ impl<'a> Navigator<'a> {
 
     fn update_display_post_edit(&mut self, old_status: DayStatus, d: FlexDay) {
         self.update_days_off(old_status, d.status);
-        let week = self.current_month.update_day(d).expect(
-            "Should find a week",
-        );
+        let week = self.current_month
+            .update_day(d)
+            .expect("Should find a week");
         self.current_month.update_balance();
         self.current_month.save();
         self.days_off.save();
-        self.curses.print_status(
-            &self.settings,
-            &self.current_month,
-            &self.days_off,
-        );
-        self.curses.print_week_total(
-            &week,
-            week.total_minutes() < self.settings.week_goal,
-        );
+        self.curses
+            .print_status(&self.settings, &self.current_month, &self.days_off);
+        self.curses
+            .print_week_total(&week, week.total_minutes() < self.settings.week_goal);
     }
 
     pub fn edit_settings(&mut self) {
@@ -486,12 +458,8 @@ impl<'a> Navigator<'a> {
     }
 
     fn select_option(&mut self, cur_idx: i32, cur_field: i32) {
-        self.curses.highlight_option(
-            cur_idx,
-            cur_field,
-            &self.settings,
-            &self.days_off,
-        )
+        self.curses
+            .highlight_option(cur_idx, cur_field, &self.settings, &self.days_off)
     }
 
     fn manage_option_edition(&mut self, cur_idx: i32, cur_field: i32, c: char, digit_idx: i32) {
@@ -552,34 +520,30 @@ impl<'a> Navigator<'a> {
                     };
                     self.settings.week_sched.sched[cur_idx as usize] = d;
                 }
-                6 => {
-                    match cur_idx {
-                        0 => {
-                            self.settings.holidays_per_year =
-                                editor::process_digit_input_for_number(
-                                    self.settings.holidays_per_year,
-                                    c,
-                                    digit_idx,
-                                );
-                        }
-                        1 => {
-                            self.days_off.holidays_left = editor::process_digit_input_for_number(
-                                self.days_off.holidays_left,
-                                c,
-                                digit_idx,
-                            );
-                        }
-                        2 => {
-                            self.days_off.sick_days_taken =
-                                editor::process_digit_input_for_number(
-                                    self.days_off.sick_days_taken,
-                                    c,
-                                    digit_idx,
-                                );
-                        }
-                        _ => unreachable!(),
+                6 => match cur_idx {
+                    0 => {
+                        self.settings.holidays_per_year = editor::process_digit_input_for_number(
+                            self.settings.holidays_per_year,
+                            c,
+                            digit_idx,
+                        );
                     }
-                }
+                    1 => {
+                        self.days_off.holidays_left = editor::process_digit_input_for_number(
+                            self.days_off.holidays_left,
+                            c,
+                            digit_idx,
+                        );
+                    }
+                    2 => {
+                        self.days_off.sick_days_taken = editor::process_digit_input_for_number(
+                            self.days_off.sick_days_taken,
+                            c,
+                            digit_idx,
+                        );
+                    }
+                    _ => unreachable!(),
+                },
                 _ => unreachable!(),
             }
         } else {

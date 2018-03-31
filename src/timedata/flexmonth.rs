@@ -56,7 +56,7 @@ fn find_prec_monday(day: NaiveDate) -> NaiveDate {
 }
 
 pub fn find_first_monday_of_grid(year: i32, month: u32) -> NaiveDate {
-    println!("find_first_monday_of_grid: year={}, month={}", year, month);
+    //println!("find_first_monday_of_grid: year={}, month={}", year, month);
     let first_day = NaiveDate::from_ymd(year, month, 1);
     match first_day.weekday() {
         Weekday::Mon => first_day,
