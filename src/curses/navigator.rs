@@ -104,7 +104,7 @@ impl<'a> Navigator<'a> {
                 } else {
                     next_month(cur_month.year, cur_month.month)
                 };
-                self.current_month = FlexMonth::load(year, month, &self.settings);
+                self.current_month = FlexMonth::load(year, month, &self.settings);                
                 self.select_day(date)
             }
         }
@@ -228,15 +228,15 @@ impl<'a> Navigator<'a> {
 
     pub fn edit_day(&mut self) {
         let mut d = self.get_current_day().clone();
-        let selected_day = d.date.expect("edit_day: must have date");
+		let selected_day = d.date.expect("edit_day: must have date");
         let now = Local::now().naive_utc();
-        let today = now.date();
-        let now = NaiveTime::from_hms(now.time().hour(), now.time().minute(), 0);
+		let today = now.date();
+		let now = NaiveTime::from_hms(now.time().hour(), now.time().minute(), 0);
         let cur_y = self.cur_y_in_week(&d);
         let mut cur_field: usize = match d.status {
             DayStatus::Weekend | DayStatus::Sick | DayStatus::Holiday => 0,
             _ => {
-                if now < NaiveTime::from_hms(12, 00, 00) {
+                if selected_day < today {
                     4
                 } else if selected_day > today {
                     2
