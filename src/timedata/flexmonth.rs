@@ -1,11 +1,11 @@
-use timedata::{FlexWeek, NaiveDateIter, FlexDay};
-use chrono::{NaiveDate, Weekday, Datelike};
-use settings::Settings;
-use std::fs::File;
-use std::fmt::{Display, Result, Formatter};
-use std::io::prelude::*;
-use std::error::Error;
+use chrono::{Datelike, NaiveDate, Weekday};
 use savable::Savable;
+use settings::Settings;
+use std::error::Error;
+use std::fmt::{Display, Formatter, Result};
+use std::fs::File;
+use std::io::prelude::*;
+use timedata::{DayStatus, FlexDay, FlexWeek, NaiveDateIter, SickDays};
 
 #[derive(Serialize, Deserialize, Default, PartialEq, Debug, Clone)]
 pub struct FlexMonth {
@@ -70,10 +70,8 @@ pub fn find_last_sunday_for(year: i32, month: u32) -> NaiveDate {
     let first_day_next_month = NaiveDate::from_ymd(y, m, 1);
     match first_day_next_month.weekday() {
         Weekday::Sun => first_day_next_month,
-        _ => {
-            find_first_monday_of_grid(first_day_next_month.year(), first_day_next_month.month())
-                .pred()
-        }
+        _ => find_first_monday_of_grid(first_day_next_month.year(), first_day_next_month.month())
+            .pred(),
     }
 }
 
@@ -94,8 +92,8 @@ impl FlexMonth {
                 weeks.push(FlexWeek::new(week));
             }
         }
-        let balance = weeks.iter().fold(0, |acc, &w| acc + w.total_minutes()) -
-            settings.week_goal * (weeks.len() as i64);
+        let balance = weeks.iter().fold(0, |acc, &w| acc + w.total_minutes())
+            - settings.week_goal * (weeks.len() as i64);
         FlexMonth {
             weeks: weeks,
             year: year,
@@ -115,12 +113,12 @@ impl FlexMonth {
             Ok(file) => file,
         };
 
-        file.write_all(self.to_json().as_bytes()).expect(
-            "Unable to write data",
-        );
+        file.write_all(self.to_json().as_bytes())
+            .expect("Unable to write data");
         file.write("\n".as_bytes()).expect("Unable to write");
     }
 
+    /// return FlexMonth and if it was loaded from json or not
     pub fn load_with_flag(year: i32, month: u32, settings: &Settings) -> (FlexMonth, bool) {
         match File::open(FlexMonth::filename(year, month)) {
             Err(_) => (FlexMonth::new(year, month, &settings), false),
@@ -136,15 +134,23 @@ impl FlexMonth {
         FlexMonth::load_with_flag(year, month, &settings).0
     }
 
+    pub fn load_with_file(path: String) -> FlexMonth {
+        let mut file = File::open(path).unwrap();
+        let mut json = String::new();
+        file.read_to_string(&mut json).expect("Failed to read file");
+        FlexMonth::from_json(&json)
+    }
+
     pub fn get_week_with_day(&self, d: NaiveDate) -> Option<(&FlexDay, &FlexWeek, i32)> {
         let mut week_number = 1;
         for w in &self.weeks {
-            if let Some(day) = w.days.iter().find(|&&day| if let Some(date) = day.date {
-                date == d
-            } else {
-                false
-            })
-            {
+            if let Some(day) = w.days.iter().find(|&&day| {
+                if let Some(date) = day.date {
+                    date == d
+                } else {
+                    false
+                }
+            }) {
                 return Some((&day, &w, week_number));
             }
             week_number += 1;
@@ -170,6 +176,19 @@ impl FlexMonth {
             }
         }
         None
+    }
+
+    pub fn get_sick_days(&self) -> SickDays {
+        self.weeks
+            .iter()
+            .flat_map(|w| {
+                w.days
+                    .to_vec()
+                    .into_iter()
+                    .filter(|d| d.status == DayStatus::Sick)
+                    .map(|d| d.date.unwrap())
+            })
+            .collect()
     }
 }
 

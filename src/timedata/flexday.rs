@@ -1,11 +1,12 @@
-use chrono::{NaiveTime, Duration, NaiveDate, Weekday, Datelike, Timelike};
+use std::cmp::Ordering;
+use chrono::{Datelike, Duration, NaiveDate, NaiveTime, Timelike, Weekday};
 use std::default::Default;
 use settings::Settings;
-use std::fmt::{Display, Result, Formatter};
+use std::fmt::{Display, Formatter, Result};
 
 pub static mut HOLIDAY_DURATION: i64 = 0;
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum DayStatus {
     Worked,
     Holiday,
@@ -20,7 +21,7 @@ impl Default for DayStatus {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct FlexDay {
     pub date: Option<NaiveDate>,
     weekday: Option<Weekday>,
@@ -54,7 +55,7 @@ impl Display for FlexDay {
                     write!(
                         f,
                         "{}   {} {:02}/{:02}   {:02}:{:02} -> {:02}:{:02} - {:02}:{:02} = \
-                        {:02}:{:02}",
+                         {:02}:{:02}",
                         if self.status == DayStatus::Worked {
                             "N"
                         } else {
@@ -111,25 +112,23 @@ impl Display for FlexDay {
                     )
                 }
             }
-            DayStatus::Weekend => {
-                write!(
-                    f,
-                    "{}   {} {:02}/{:02}   --:-- -> --:-- - --:-- = --:--",
-                    "W",
-                    match self.weekday {
-                        Some(wd) => super::weekday_to_string(wd),
-                        None => "???".to_string(),
-                    },
-                    match self.date {
-                        Some(date) => date.day(),
-                        None => 0u32,
-                    },
-                    match self.date {
-                        Some(date) => date.month(),
-                        None => 0u32,
-                    }
-                )
-            }
+            DayStatus::Weekend => write!(
+                f,
+                "{}   {} {:02}/{:02}   --:-- -> --:-- - --:-- = --:--",
+                "W",
+                match self.weekday {
+                    Some(wd) => super::weekday_to_string(wd),
+                    None => "???".to_string(),
+                },
+                match self.date {
+                    Some(date) => date.day(),
+                    None => 0u32,
+                },
+                match self.date {
+                    Some(date) => date.month(),
+                    None => 0u32,
+                }
+            ),
             DayStatus::Holiday | DayStatus::Sick => {
                 let total = Duration::minutes(self.total_minutes());
                 write!(
@@ -156,6 +155,27 @@ impl Display for FlexDay {
                     total.num_minutes() - (total.num_hours() * 60)
                 )
             }
+        }
+    }
+}
+
+impl PartialOrd for FlexDay {
+    fn partial_cmp(&self, other: &FlexDay) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for FlexDay {
+    fn cmp(&self, other: &FlexDay) -> Ordering {
+        match self.date {
+            Some(date) => match other.date {
+                Some(other_date) => date.cmp(&other_date),
+                None => Ordering::Greater,
+            },
+            None => match other.date {
+                Some(_) => Ordering::Less,
+                None => Ordering::Equal,
+            },
         }
     }
 }

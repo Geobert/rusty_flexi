@@ -1,14 +1,14 @@
-pub use self::navigator::Navigator;
 pub use self::navigator::HourField;
+pub use self::navigator::Navigator;
 
-mod navigator;
 mod editor;
+mod navigator;
 
+use chrono::{Datelike, Duration, NaiveDate, Timelike};
 use pancurses::*;
-use timedata::{FlexWeek, FlexDay, FlexMonth, DaysOff, DayStatus, month_to_string};
 use settings::Settings;
-use chrono::{NaiveDate, Timelike, Datelike, Duration};
 use std::collections::HashMap;
+use timedata::{month_to_string, DayStatus, DaysOff, FlexDay, FlexMonth, FlexWeek};
 
 pub struct Curses<'a> {
     pub main_win: &'a Window,
@@ -26,12 +26,12 @@ impl<'a> Curses<'a> {
     pub fn new(window: &'a Window) -> Curses {
         Curses {
             main_win: window,
-            week_win: window.subwin(11, 48, 2, 2).expect(
-                "Week window creation failed",
-            ),
-            stat_win: window.subwin(12, 25, 1, 50).expect(
-                "Status window creation failed",
-            ),
+            week_win: window
+                .subwin(11, 48, 2, 2)
+                .expect("Week window creation failed"),
+            stat_win: window
+                .subwin(13, 25, 1, 50)
+                .expect("Status window creation failed"),
             fields: [0, 16, 19, 25, 28, 33, 36],
             option_win: None,
             sub_option_days_off: None,
@@ -163,20 +163,20 @@ impl<'a> Curses<'a> {
         self.week_win.attroff(A_REVERSE);
     }
 
+    fn print_status_title(&self, title: &str, start_y: i32) {
+        let width = self.stat_win.get_max_x();
+        self.stat_win.attron(A_UNDERLINE);
+        self.stat_win
+            .mvprintw(start_y, width / 2 - title.len() as i32 / 2, &title);
+        self.stat_win.attroff(A_UNDERLINE);
+    }
+
     pub fn print_status(&self, settings: &Settings, m: &FlexMonth, off: &DaysOff) {
         let start_y = 1;
         let pad_x = 2;
         self.stat_win.clear();
         self.stat_win.draw_box(0, 0);
-        self.stat_win.attron(A_UNDERLINE);
-        let stat_title = format!("{} statistics", month_to_string(m.month));
-        let width = self.stat_win.get_max_x();
-        self.stat_win.mvprintw(
-            start_y,
-            width / 2 - stat_title.len() as i32 / 2,
-            &stat_title,
-        );
-        self.stat_win.attroff(A_UNDERLINE);
+        self.print_status_title(&format!("{} statistics", month_to_string(m.month)), start_y);
         let goal = settings.week_goal * m.weeks.len() as i64;
         let total = m.total_minute();
         let sign = if m.balance < 0 { "-" } else { " " };
@@ -200,11 +200,8 @@ impl<'a> Curses<'a> {
                 total - (total / 60) * 60
             ),
         );
-        self.stat_win.mvprintw(
-            start_y + 4,
-            pad_x,
-            &format!("Balance: "),
-        );
+        self.stat_win
+            .mvprintw(start_y + 4, pad_x, &format!("Balance: "));
         if m.balance < 0 {
             self.stat_win.attron(COLOR_PAIR(1));
         }
@@ -221,23 +218,18 @@ impl<'a> Curses<'a> {
         if m.balance < 0 {
             self.stat_win.attroff(COLOR_PAIR(1));
         }
-        let days_off_title = format!("Days off ({})", m.year);
-        self.stat_win.attron(A_UNDERLINE);
-        self.stat_win.mvprintw(
-            start_y + 6,
-            width / 2 - days_off_title.len() as i32 / 2,
-            &days_off_title,
-        );
-        self.stat_win.attroff(A_UNDERLINE);
+        self.print_status_title(&format!("Days off ({})", m.year), start_y + 6);
         self.stat_win.mvprintw(
             start_y + 8,
             pad_x,
             &format!("Holidays left: {: >6}", off.holidays_left),
         );
+
+        self.stat_win.mvprintw(start_y + 9, pad_x, "Sick days from");
         self.stat_win.mvprintw(
-            start_y + 9,
+            start_y + 10,
             pad_x,
-            &format!("Sick days taken: {: >4}", off.sick_days_taken),
+            &format!("last 12 months: {: >5}", off.sick_days_taken()),
         );
         self.stat_win.refresh();
     }
@@ -264,9 +256,9 @@ impl<'a> Curses<'a> {
         self.print_settings_title(&option, width);
         let beg_y = 3;
         let sub_height = height - beg_y - 1;
-        let sched = option.derwin(sub_height, 28, beg_y, 2).expect(
-            "Error while creating sched option window",
-        );
+        let sched = option
+            .derwin(sub_height, 28, beg_y, 2)
+            .expect("Error while creating sched option window");
         let days_off = option
             .derwin(sub_height, 25, beg_y, sched.get_max_x() + 4)
             .expect("Error while creating days off option window");
@@ -335,12 +327,12 @@ impl<'a> Curses<'a> {
             2,
             &format!("Holidays left: {: >8}", days_off.holidays_left),
         );
-        cur_y += 1;
-        off.mvprintw(
-            cur_y,
-            2,
-            &format!("Sick days taken: {: >6}", days_off.sick_days_taken),
-        );
+        // cur_y += 1;
+        // off.mvprintw(
+        //     cur_y,
+        //     2,
+        //     &format!("Sick days taken: {: >6}", days_off.sick_days_taken()),
+        // );
 
         self.sub_option_days_off = Some(off);
     }
@@ -359,13 +351,7 @@ impl<'a> Curses<'a> {
         let win = self.option_win.take().unwrap();
         win.clear();
         win.border(
-            '\u{2551}',
-            '\u{2551}',
-            '\u{2550}',
-            '\u{2550}',
-            '\u{2554}',
-            '\u{2557}',
-            '\u{255A}',
+            '\u{2551}', '\u{2551}', '\u{2550}', '\u{2550}', '\u{2554}', '\u{2557}', '\u{255A}',
             '\u{255D}',
         );
         // reset any reverse attr
@@ -383,14 +369,12 @@ impl<'a> Curses<'a> {
         win.mv(y, x);
         win.attron(A_REVERSE);
         let value = match cur_field {
-            6 => {
-                match cur_idx {
-                    0 => settings.holidays_per_year as f32,
-                    1 => off.holidays_left,
-                    2 => off.sick_days_taken,
-                    _ => unreachable!(),
-                }
-            }
+            6 => match cur_idx {
+                0 => settings.holidays_per_year as f32,
+                1 => off.holidays_left,
+                2 => off.sick_days_taken(),
+                _ => unreachable!(),
+            },
             f if f <= 5 => {
                 if cur_idx < 5 {
                     let d = settings.week_sched.sched[cur_idx as usize];
