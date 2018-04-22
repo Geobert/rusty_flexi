@@ -131,7 +131,40 @@ impl FlexMonth {
     }
 
     pub fn load(year: i32, month: u32, settings: &Settings) -> FlexMonth {
-        FlexMonth::load_with_flag(year, month, &settings).0
+        let (month, from_json) = FlexMonth::load_with_flag(year, month, &settings);
+        // generate Xmas holidays if needed
+        if !from_json {
+            // newly created month
+            match month.month {
+                1 => {
+                    let mut january = month;
+                    // auto set holiday as we always have 2 days of holidays in january
+                    let mut week_to_edit = january.weeks[0].clone();
+                    week_to_edit[0].status = DayStatus::Holiday;
+                    week_to_edit[1].status = DayStatus::Holiday;
+                    january.weeks[0] = week_to_edit;
+                    january.save();
+                    january
+                }
+                12 => {
+                    let mut december = month;
+                    // auto set holiday as we always have 5 days of holidays in december
+                    let nb_weeks = december.weeks.len();
+                    let mut week_to_edit = december.weeks[nb_weeks - 1].clone();
+                    for day in week_to_edit.days.iter_mut() {
+                        if day.status == DayStatus::Worked {
+                            day.status = DayStatus::Holiday;
+                        }
+                    }
+                    december.weeks[nb_weeks - 1] = week_to_edit;
+                    december.save();
+                    december
+                }
+                _ => month,
+            }
+        } else {
+            month
+        }
     }
 
     pub fn load_with_file(path: String) -> FlexMonth {
