@@ -1,7 +1,9 @@
-#![windows_subsystem = "windows"]
+// #![windows_subsystem = "windows"]
 #[macro_use]
 extern crate serde_derive;
 extern crate chrono;
+extern crate failure;
+extern crate glob;
 extern crate pancurses;
 extern crate serde;
 extern crate serde_json;
@@ -60,7 +62,7 @@ fn main() {
 
     init_pair(1, COLOR_RED, COLOR_BLACK);
     let today = chrono::Local::today().naive_local();
-    let mut navigator = Navigator::new(today, &window);
+    let mut navigator = Navigator::new(today, &window).unwrap();
 
     {
         let settings = navigator.settings.clone();
@@ -94,13 +96,13 @@ fn main() {
                         navigator.change_month(true);
                     }
                     Input::Character('\n') => {
-                        navigator.edit_day();
+                        navigator.edit_day().unwrap();
                     }
                     Input::Character(c) if c == 'h' || c == 's' => {
-                        navigator.change_status(c);
+                        navigator.change_status(c).unwrap();
                     }
                     Input::Character('o') => {
-                        navigator.edit_settings();
+                        navigator.edit_settings().unwrap();
                     }
                     Input::KeyHome => {
                         let today = chrono::Local::today().naive_local();
@@ -108,24 +110,25 @@ fn main() {
                     }
                     Input::Character(c) if c == 'b' || c == 'e' => {
                         let today = chrono::Local::today().naive_local();
-                        println!("BEGIN TEST");
                         navigator.select_day(today);
                         let offset = Duration::minutes(navigator.settings.offset);
                         let t = chrono::Local::now().naive_local().time();
                         let t = NaiveTime::from_hms(t.hour(), t.minute(), 0); // clear seconds
-                        navigator.change_time(
-                            if c == 'b' {
-                                t.sub(offset)
-                            } else {
-                                t.add(offset)
-                            },
-                            if c == 'b' {
-                                HourField::Begin
-                            } else {
-                                HourField::End
-                            },
-                        );
-                        navigator.edit_day();
+                        navigator
+                            .change_time(
+                                if c == 'b' {
+                                    t.sub(offset)
+                                } else {
+                                    t.add(offset)
+                                },
+                                if c == 'b' {
+                                    HourField::Begin
+                                } else {
+                                    HourField::End
+                                },
+                            )
+                            .unwrap();
+                        navigator.edit_day().unwrap();
                     }
                     _ => {
                         println!("unknown: {:?}", c);
