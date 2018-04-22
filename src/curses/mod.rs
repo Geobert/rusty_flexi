@@ -225,7 +225,7 @@ impl<'a> Curses<'a> {
             &format!("Holidays left: {: >6}", off.holidays_left),
         );
 
-        self.stat_win.mvprintw(start_y + 9, pad_x, "Sick days from");
+        self.stat_win.mvprintw(start_y + 9, pad_x, "Sick days for");
         self.stat_win.mvprintw(
             start_y + 10,
             pad_x,
