@@ -20,35 +20,9 @@ use settings::Settings;
 use std::ops::{Add, Sub};
 use timedata::{DayStatus, FlexMonth};
 
-fn generate_xmas_holidays(today: NaiveDate, settings: &Settings) {
-    {
-        let (mut december, from_json) = FlexMonth::load_with_flag(today.year(), 12, &settings);
-        if !from_json {
-            // newly created month,
-            // auto set holiday as we always have 5 days of holidays in december
-            let nb_weeks = december.weeks.len();
-            let mut week_to_edit = december.weeks[nb_weeks - 1].clone();
-            for day in week_to_edit.days.iter_mut() {
-                if day.status == DayStatus::Worked {
-                    day.status = DayStatus::Holiday;
-                }
-            }
-            december.weeks[nb_weeks - 1] = week_to_edit;
-            december.save();
-        }
-    }
-    {
-        let (mut january, from_json) = FlexMonth::load_with_flag(today.year(), 01, &settings);
-        if !from_json {
-            // newly created month, auto set holiday as we always have
-            // 2 days of holidays in january
-            let mut week_to_edit = january.weeks[0].clone();
-            week_to_edit[0].status = DayStatus::Holiday;
-            week_to_edit[1].status = DayStatus::Holiday;
-            january.weeks[0] = week_to_edit;
-            january.save();
-        }
-    }
+fn generate_xmas_holidays(year: i32, settings: &Settings) {
+    FlexMonth::load(year, 12, &settings);
+    FlexMonth::load(year, 01, &settings);
 }
 
 fn main() {
@@ -66,7 +40,7 @@ fn main() {
 
     {
         let settings = navigator.settings.clone();
-        generate_xmas_holidays(today, &settings);
+        generate_xmas_holidays(today.year(), &settings);
     }
 
     navigator.init();
