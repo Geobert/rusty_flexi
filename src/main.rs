@@ -1,4 +1,4 @@
-// #![windows_subsystem = "windows"]
+#![windows_subsystem = "windows"]
 #[macro_use]
 extern crate serde_derive;
 extern crate chrono;
@@ -8,17 +8,17 @@ extern crate pancurses;
 extern crate serde;
 extern crate serde_json;
 
-mod timedata;
-mod settings;
-mod savable;
 mod curses;
+mod savable;
+mod settings;
+mod timedata;
 
-use pancurses::*;
-use curses::*;
 use chrono::{Datelike, Duration, NaiveDate, NaiveTime, Timelike};
+use curses::*;
+use pancurses::*;
+use settings::Settings;
 use std::ops::{Add, Sub};
 use timedata::{DayStatus, FlexMonth};
-use settings::Settings;
 
 fn generate_xmas_holidays(today: NaiveDate, settings: &Settings) {
     {
