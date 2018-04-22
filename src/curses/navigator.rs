@@ -1,11 +1,12 @@
 use timedata::*;
-use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Weekday, Timelike};
+use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Timelike, Weekday};
 use settings::Settings;
 use super::Curses;
 use pancurses::{Input, Window, COLOR_PAIR};
 use std::ops::{Add, Sub};
 use super::editor;
 use super::editor::TimeField;
+use failure::Error;
 
 pub struct Navigator<'a> {
     current_month: FlexMonth,
@@ -21,9 +22,9 @@ pub enum HourField {
 }
 
 impl<'a> Navigator<'a> {
-    pub fn new(cur_day: NaiveDate, screen: &'a Window) -> Navigator<'a> {
+    pub fn new(cur_day: NaiveDate, screen: &'a Window) -> Result<Navigator<'a>, Error> {
         let settings = Settings::load();
-        match settings {
+        let mut nav = match settings {
             Some(settings) => Navigator {
                 days_off: DaysOff::load(cur_day.year(), &settings),
                 current_month: FlexMonth::load(cur_day.year(), cur_day.month(), &settings),
@@ -41,11 +42,13 @@ impl<'a> Navigator<'a> {
                     curses: Curses::new(&screen),
                     settings: settings,
                 };
-                n.edit_settings();
+                n.edit_settings()?;
                 n.current_month = FlexMonth::load(cur_day.year(), cur_day.month(), &n.settings);
                 n
             }
-        }
+        };
+        nav.days_off.roll_sick_days();
+        Ok(nav)
     }
 
     pub fn get_current_day(&self) -> &FlexDay {
@@ -104,7 +107,7 @@ impl<'a> Navigator<'a> {
                 } else {
                     next_month(cur_month.year, cur_month.month)
                 };
-                self.current_month = FlexMonth::load(year, month, &self.settings);                
+                self.current_month = FlexMonth::load(year, month, &self.settings);
                 self.select_day(date)
             }
         }
@@ -173,47 +176,6 @@ impl<'a> Navigator<'a> {
             .print_status(&self.settings, &self.current_month, &self.days_off);
     }
 
-    fn update_days_off(&mut self, old_status: DayStatus, new_status: DayStatus) {
-        if old_status != new_status {
-            match old_status {
-                DayStatus::Worked => match new_status {
-                    DayStatus::Holiday => self.days_off.holidays_left -= 1.0,
-                    DayStatus::Half => self.days_off.holidays_left -= 0.5,
-                    DayStatus::Sick => self.days_off.sick_days_taken -= 1.0,
-                    DayStatus::Weekend | DayStatus::Worked => {}
-                },
-                DayStatus::Holiday => match new_status {
-                    DayStatus::Worked | DayStatus::Weekend => self.days_off.holidays_left += 1.0,
-                    DayStatus::Half => self.days_off.holidays_left += 0.5,
-                    DayStatus::Sick => {
-                        self.days_off.holidays_left += 1.0;
-                        self.days_off.sick_days_taken -= 1.0;
-                    }
-                    DayStatus::Holiday => {}
-                },
-                DayStatus::Half => match new_status {
-                    DayStatus::Worked | DayStatus::Weekend => self.days_off.holidays_left += 0.5,
-                    DayStatus::Holiday => self.days_off.holidays_left -= 0.5,
-                    DayStatus::Sick => {
-                        self.days_off.holidays_left += 0.5;
-                        self.days_off.sick_days_taken -= 1.0;
-                    }
-                    DayStatus::Half => {}
-                },
-                DayStatus::Sick => {
-                    self.days_off.sick_days_taken += 1.0;
-                    match new_status {
-                        DayStatus::Half => self.days_off.holidays_left -= 0.5,
-                        DayStatus::Holiday => self.days_off.holidays_left -= 1.0,
-                        DayStatus::Sick => {}
-                        DayStatus::Worked | DayStatus::Weekend => {}
-                    }
-                }
-                DayStatus::Weekend => {}
-            }
-        }
-    }
-
     fn cur_y_in_week(&self, d: &FlexDay) -> i32 {
         match d.weekday().expect("weekday not set, impossible") {
             Weekday::Mon => 2,
@@ -226,12 +188,12 @@ impl<'a> Navigator<'a> {
         }
     }
 
-    pub fn edit_day(&mut self) {
+    pub fn edit_day(&mut self) -> Result<(), Error> {
         let mut d = self.get_current_day().clone();
-		let selected_day = d.date.expect("edit_day: must have date");
+        let selected_day = d.date.expect("edit_day: must have date");
         let now = Local::now().naive_utc();
-		let today = now.date();
-		let now = NaiveTime::from_hms(now.time().hour(), now.time().minute(), 0);
+        let today = now.date();
+        let now = NaiveTime::from_hms(now.time().hour(), now.time().minute(), 0);
         let cur_y = self.cur_y_in_week(&d);
         let mut cur_field: usize = match d.status {
             DayStatus::Weekend | DayStatus::Sick | DayStatus::Holiday => 0,
@@ -293,7 +255,7 @@ impl<'a> Navigator<'a> {
                 },
                 None => {}
             }
-            self.update_display_post_edit(old_status, d);
+            self.update_display_post_edit(old_status, d)?;
         }
         // remove any reverse attr
         let cur_day = self.current_day;
@@ -302,9 +264,10 @@ impl<'a> Navigator<'a> {
         } else {
             cur_day
         });
+        Ok(())
     }
 
-    pub fn change_status(&mut self, c: char) {
+    pub fn change_status(&mut self, c: char) -> Result<(), Error> {
         let mut d = self.get_current_day().clone();
         let old_status = d.status;
         match d.weekday().expect("must have weekday") {
@@ -327,13 +290,18 @@ impl<'a> Navigator<'a> {
                     }
                     _ => d.status,
                 };
-                self.update_display_post_direct_edit(old_status, d);
+                self.update_display_post_direct_edit(old_status, d)?;
             }
         }
+        Ok(())
     }
 
-    fn update_display_post_direct_edit(&mut self, old_status: DayStatus, d: FlexDay) {
-        self.update_display_post_edit(old_status, d);
+    fn update_display_post_direct_edit(
+        &mut self,
+        old_status: DayStatus,
+        d: FlexDay,
+    ) -> Result<(), Error> {
+        self.update_display_post_edit(old_status, d)?;
         self.curses.week_win.mv(self.cur_y_in_week(&d), 0);
         if d.total_minutes() < 0 {
             self.curses.week_win.attron(COLOR_PAIR(1));
@@ -343,9 +311,10 @@ impl<'a> Navigator<'a> {
             self.curses.week_win.attroff(COLOR_PAIR(1));
         }
         self.curses.week_win.refresh();
+        Ok(())
     }
 
-    pub fn change_time(&mut self, time: NaiveTime, field: HourField) {
+    pub fn change_time(&mut self, time: NaiveTime, field: HourField) -> Result<(), Error> {
         let mut d = self.get_current_day().clone();
         match d.status {
             DayStatus::Worked | DayStatus::Half => {
@@ -353,27 +322,29 @@ impl<'a> Navigator<'a> {
                     HourField::Begin => d.start = time,
                     HourField::End => d.end = time,
                 }
-                self.update_display_post_direct_edit(d.status, d);
+                self.update_display_post_direct_edit(d.status, d)?;
             }
             _ => {}
         }
+        Ok(())
     }
 
-    fn update_display_post_edit(&mut self, old_status: DayStatus, d: FlexDay) {
-        self.update_days_off(old_status, d.status);
+    fn update_display_post_edit(&mut self, old_status: DayStatus, d: FlexDay) -> Result<(), Error> {
+        self.days_off.update_days_off(old_status, d);
         let week = self.current_month
             .update_day(d)
             .expect("Should find a week");
         self.current_month.update_balance();
         self.current_month.save();
-        self.days_off.save();
+        self.days_off.save()?;
         self.curses
             .print_status(&self.settings, &self.current_month, &self.days_off);
         self.curses
             .print_week_total(&week, week.total_minutes() < self.settings.week_goal);
+        Ok(())
     }
 
-    pub fn edit_settings(&mut self) {
+    pub fn edit_settings(&mut self) -> Result<(), Error> {
         self.curses.open_settings(&self.settings, &self.days_off);
         let mut cur_idx = 0;
         let mut cur_field = 0;
@@ -452,9 +423,10 @@ impl<'a> Navigator<'a> {
             }
         }
         self.settings.save();
-        self.days_off.save();
+        self.days_off.save()?;
         self.curses.close_setting();
         self.init();
+        Ok(())
     }
 
     fn select_option(&mut self, cur_idx: i32, cur_field: i32) {
@@ -531,13 +503,6 @@ impl<'a> Navigator<'a> {
                     1 => {
                         self.days_off.holidays_left = editor::process_digit_input_for_number(
                             self.days_off.holidays_left,
-                            c,
-                            digit_idx,
-                        );
-                    }
-                    2 => {
-                        self.days_off.sick_days_taken = editor::process_digit_input_for_number(
-                            self.days_off.sick_days_taken,
                             c,
                             digit_idx,
                         );

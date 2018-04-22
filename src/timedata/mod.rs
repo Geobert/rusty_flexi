@@ -9,6 +9,7 @@ pub use self::flexmonth::prev_month;
 pub use self::naivedate_iterator::NaiveDateIter;
 pub use self::flexday::DayStatus;
 pub use self::daysoff::DaysOff;
+pub use self::daysoff::SickDays;
 
 mod flexday;
 mod flexweek;
