@@ -13,12 +13,12 @@ mod savable;
 mod settings;
 mod timedata;
 
-use chrono::{Datelike, Duration, NaiveDate, NaiveTime, Timelike};
+use chrono::{Datelike, Duration, NaiveTime, Timelike};
 use curses::*;
 use pancurses::*;
 use settings::Settings;
 use std::ops::{Add, Sub};
-use timedata::{DayStatus, FlexMonth};
+use timedata::FlexMonth;
 
 fn generate_xmas_holidays(year: i32, settings: &Settings) {
     FlexMonth::load(year, 12, &settings);
