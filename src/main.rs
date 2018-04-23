@@ -33,6 +33,7 @@ fn main() {
     cbreak();
     start_color();
     curs_set(0);
+    resize_term(15, 76);
 
     init_pair(1, COLOR_RED, COLOR_BLACK);
     let today = chrono::Local::today().naive_local();
