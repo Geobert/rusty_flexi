@@ -24,7 +24,7 @@ Press HOME to focus the current day.
  * `Arrow Up/Down` navigate by day
  * `Arrow Left/Right` navigate by week
  * `Page Up/Down` to navigate by month
- * `o to open options
+ * `o` to open options
 
 ## Edit mode
  * `Arrows left/right` to move fields
