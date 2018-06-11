@@ -86,7 +86,11 @@ fn main() {
                     Input::Character(c) if c == 'b' || c == 'e' => {
                         let today = chrono::Local::today().naive_local();
                         navigator.select_day(today);
-                        let offset = Duration::minutes(navigator.settings.offset);
+                        let offset = Duration::minutes(if c == 'b' {
+                            navigator.settings.offsets.entry
+                        } else {
+                            navigator.settings.offsets.exit
+                        });
                         let t = chrono::Local::now().naive_local().time();
                         let t = NaiveTime::from_hms(t.hour(), t.minute(), 0); // clear seconds
                         navigator

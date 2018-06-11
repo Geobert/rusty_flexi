@@ -124,8 +124,17 @@ impl FlexMonth {
             Err(_) => (FlexMonth::new(year, month, &settings), false),
             Ok(mut file) => {
                 let mut json = String::new();
-                file.read_to_string(&mut json).expect("Failed to read file");
-                (FlexMonth::from_json(&json), true)
+                file.read_to_string(&mut json).expect(&format!(
+                    "Failed to read file: {}",
+                    FlexMonth::filename(year, month)
+                ));
+                (
+                    FlexMonth::from_json(&json).expect(&format!(
+                        "Failed to deserialized {}",
+                        FlexMonth::filename(year, month)
+                    )),
+                    true,
+                )
             }
         }
     }
@@ -168,10 +177,11 @@ impl FlexMonth {
     }
 
     pub fn load_with_file(path: String) -> FlexMonth {
-        let mut file = File::open(path).unwrap();
+        let mut file = File::open(&path).unwrap();
         let mut json = String::new();
-        file.read_to_string(&mut json).expect("Failed to read file");
-        FlexMonth::from_json(&json)
+        file.read_to_string(&mut json)
+            .expect(&format!("Failed to read file {}", path));
+        FlexMonth::from_json(&json).expect(&format!("Failed to deserialized  {}", path))
     }
 
     pub fn get_week_with_day(&self, d: NaiveDate) -> Option<(&FlexDay, &FlexWeek, i32)> {

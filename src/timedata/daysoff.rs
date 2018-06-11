@@ -55,7 +55,10 @@ impl DaysOff {
                 let mut json = String::new();
                 file.read_to_string(&mut json)
                     .expect(&format!("Failed to read {}", DaysOff::filename(year)));
-                DaysOff::from_json(&json)
+                DaysOff::from_json(&json).expect(&format!(
+                    "Failed to deserialized {}",
+                    DaysOff::filename(year)
+                ))
             }
         };
 
@@ -69,7 +72,7 @@ impl DaysOff {
                 let mut json = String::new();
                 file.read_to_string(&mut json)
                     .expect(&format!("Failed to read sickdays.json"));
-                SickDays::from_json(&json)
+                SickDays::from_json(&json).expect(&format!("Failed to deserialized sickdays.json"))
             }
         };
         if need_save {

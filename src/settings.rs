@@ -1,18 +1,18 @@
-use chrono::{Duration, Weekday, NaiveTime, NaiveDate, Datelike, Timelike};
+use chrono::{Datelike, Duration, NaiveDate, NaiveTime, Timelike, Weekday};
+use savable::Savable;
+use std::cmp::Ordering;
+use std::error::Error;
+use std::fmt::{Display, Formatter, Result};
 use std::fs::File;
 use std::io::prelude::*;
-use std::error::Error;
-use std::cmp::Ordering;
-use savable::Savable;
-use timedata::{HOLIDAY_DURATION, weekday_to_string};
-use std::fmt::{Display, Result, Formatter};
+use timedata::{weekday_to_string, HOLIDAY_DURATION};
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 pub struct SettingsDay {
     pub weekday: Weekday,
     pub start: NaiveTime,
     pub end: NaiveTime,
-    // TODO switch to Duration when chrono supports Serialize/Deserialize
+    // TODO switch to Duration when chrono supports Serialize/Deserialize
     pub pause: i64,
 }
 
@@ -88,6 +88,12 @@ impl Default for WeekSchedule {
     }
 }
 
+#[derive(Default, Serialize, Deserialize, Debug, PartialEq, Clone)]
+pub struct Offset {
+    pub entry: i64, // TODO switch to Duration when chrono supports Serialize
+    pub exit: i64,
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Settings {
     #[serde(default)]
@@ -99,8 +105,7 @@ pub struct Settings {
     #[serde(default = "default_holiday_duration")]
     pub holiday_duration: i64,
     #[serde(default)]
-    pub offset: i64,
-    // TODO switch to Duration when chrono supports Serialize
+    pub offsets: Offset,
 }
 
 fn default_week_goal() -> i64 {
@@ -122,7 +127,7 @@ impl Default for Settings {
             holidays_per_year: default_holidays_per_year(),
             week_goal: default_week_goal(),
             holiday_duration: default_holiday_duration(),
-            offset: 0,
+            offsets: Offset { entry: 0, exit: 0 },
         };
         unsafe {
             HOLIDAY_DURATION = settings.holiday_duration;
@@ -142,9 +147,8 @@ impl Settings {
         unsafe {
             HOLIDAY_DURATION = self.holiday_duration;
         }
-        file.write_all(self.to_json().as_bytes()).expect(
-            "Unable to write data",
-        );
+        file.write_all(self.to_json().as_bytes())
+            .expect("Unable to write data");
         file.write("\n".as_bytes()).expect("Unable to write \\n");
     }
 
@@ -153,10 +157,10 @@ impl Settings {
             Err(_) => None,
             Ok(mut file) => {
                 let mut json = String::new();
-                file.read_to_string(&mut json).expect(
-                    "Failed to read settings.json",
-                );
-                let settings = Settings::from_json(&json);
+                file.read_to_string(&mut json)
+                    .expect("Failed to read settings.json");
+                let settings = Settings::from_json(&json)
+                                .expect("Settings format has changed, please backup `data/settings.json` and delete it.");
                 unsafe {
                     HOLIDAY_DURATION = settings.holiday_duration;
                 }
@@ -172,24 +176,22 @@ impl Settings {
                 d.weekday = day.weekday();
                 d
             }
-            _ => {
-                match self.week_sched.sched.binary_search_by(|flex_day| {
-                    let num_left = flex_day.weekday.number_from_monday();
-                    let num_right = day.weekday().number_from_monday();
-                    if flex_day.weekday == day.weekday() {
-                        Ordering::Equal
+            _ => match self.week_sched.sched.binary_search_by(|flex_day| {
+                let num_left = flex_day.weekday.number_from_monday();
+                let num_right = day.weekday().number_from_monday();
+                if flex_day.weekday == day.weekday() {
+                    Ordering::Equal
+                } else {
+                    if num_left > num_right {
+                        Ordering::Greater
                     } else {
-                        if num_left > num_right {
-                            Ordering::Greater
-                        } else {
-                            Ordering::Less
-                        }
+                        Ordering::Less
                     }
-                }) {
-                    Ok(idx) => self.week_sched.sched[idx],
-                    Err(_) => panic!("couldn't find {:?} in week sched", day.weekday()),
                 }
-            }
+            }) {
+                Ok(idx) => self.week_sched.sched[idx],
+                Err(_) => panic!("couldn't find {:?} in week sched", day.weekday()),
+            },
         }
     }
 }
