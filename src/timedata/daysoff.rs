@@ -1,13 +1,14 @@
+use crate::savable::Savable;
+use crate::settings::Settings;
+use crate::timedata::*;
 use chrono;
 use chrono::naive::NaiveDate;
 use chrono::Datelike;
 use failure::Error;
 use glob::glob;
-use savable::Savable;
-use settings::Settings;
+use serde_derive::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::prelude::*;
-use timedata::*;
 
 pub type SickDays = Vec<NaiveDate>;
 
@@ -168,49 +169,49 @@ mod tests {
         let s = Settings::default();
         let mut d1 = DaysOff::new(2017, &s);
         assert_eq!(d1.year, 2017);
-        assert_eq!(d1.sick_days_taken(), 0.0);
-        assert_eq!(d1.holidays_left, 26.0);
+        assert_eq!(d1.sick_days_taken(), 0.0f32);
+        assert_eq!(d1.holidays_left, 26.0f32);
         d1.holidays_left = 15.0;
-        d1.sick_days.push(FlexDay::default());
+        d1.sick_days.push(NaiveDate::from_ymd(2017, 06, 27));
         d1.save().unwrap();
         let d2 = DaysOff::load(2017, &s);
         assert_eq!(d2.year, 2017);
-        assert_eq!(d2.holidays_left, 15.0);
-        assert_eq!(d2.sick_days_taken(), 1.0);
+        assert_eq!(d2.holidays_left, 15.0f32);
+        assert_eq!(d2.sick_days_taken(), 1.0f32);
     }
 
     #[test]
     fn sick_day_test() {
         let s = Settings::default();
         let mut d1 = DaysOff::new(2017, &s);
-        assert_eq!(d1.sick_days_taken(), 0.0);
+        assert_eq!(d1.sick_days_taken(), 0.0f32);
         let today = chrono::Local::today().naive_local();
         let day = FlexDay::new(today, &s);
         d1.add_sick_day(day);
-        assert_eq!(d1.sick_days_taken(), 1.0);
+        assert_eq!(d1.sick_days_taken(), 1.0f32);
 
         // adding the same day is not authorised
         d1.add_sick_day(day);
-        assert_eq!(d1.sick_days_taken(), 1.0);
+        assert_eq!(d1.sick_days_taken(), 1.0f32);
 
         d1.save().unwrap();
         let d2 = DaysOff::load(2017, &s);
-        assert_eq!(d2.sick_days_taken(), 1.0);
+        assert_eq!(d2.sick_days_taken(), 1.0f32);
 
         // sick days are in a stand alone file but managed by DaysOff struct
         let mut d2 = DaysOff::load(2018, &s);
-        assert_eq!(d2.sick_days_taken(), 1.0);
+        assert_eq!(d2.sick_days_taken(), 1.0f32);
 
         // adding a day more than 12 months old should be removed by roll_sick_days
         let limit = NaiveDate::from_ymd(today.year() - 1, today.month(), 1).pred();
         let day = FlexDay::new(limit, &s);
         d2.add_sick_day(day);
-        assert_eq!(d2.sick_days_taken(), 1.0);
+        assert_eq!(d2.sick_days_taken(), 1.0f32);
 
         let day = FlexDay::new(today, &s);
         d2.remove_sick_day(day);
-        assert_eq!(d2.sick_days_taken(), 0.0);
+        assert_eq!(d2.sick_days_taken(), 0.0f32);
         d2.remove_sick_day(day);
-        assert_eq!(d2.sick_days_taken(), 0.0);
+        assert_eq!(d2.sick_days_taken(), 0.0f32);
     }
 }

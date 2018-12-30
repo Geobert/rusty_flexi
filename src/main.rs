@@ -1,24 +1,16 @@
-#![windows_subsystem = "windows"]
-#[macro_use]
-extern crate serde_derive;
-extern crate chrono;
-extern crate failure;
-extern crate glob;
-extern crate pancurses;
-extern crate serde;
-extern crate serde_json;
+#![cfg_attr(not(test), windows_subsystem = "windows")]
 
 mod curses;
 mod savable;
 mod settings;
 mod timedata;
 
+use crate::curses::*;
+use crate::settings::Settings;
+use crate::timedata::FlexMonth;
 use chrono::{Datelike, Duration, NaiveTime, Timelike};
-use curses::*;
 use pancurses::*;
-use settings::Settings;
 use std::ops::{Add, Sub};
-use timedata::FlexMonth;
 
 fn generate_xmas_holidays(year: i32, settings: &Settings) {
     FlexMonth::load(year, 12, &settings);

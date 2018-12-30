@@ -6,9 +6,9 @@ mod navigator;
 
 use chrono::{Datelike, Duration, NaiveDate, Timelike};
 use pancurses::*;
-use settings::Settings;
+use crate::settings::Settings;
 use std::collections::HashMap;
-use timedata::{month_to_string, DayStatus, DaysOff, FlexDay, FlexMonth, FlexWeek};
+use crate::timedata::{month_to_string, DayStatus, DaysOff, FlexDay, FlexMonth, FlexWeek};
 
 pub struct Curses<'a> {
     pub main_win: &'a Window,

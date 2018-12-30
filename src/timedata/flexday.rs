@@ -1,7 +1,8 @@
-use std::cmp::Ordering;
+use crate::settings::Settings;
 use chrono::{Datelike, Duration, NaiveDate, NaiveTime, Timelike, Weekday};
+use serde_derive::{Deserialize, Serialize};
+use std::cmp::Ordering;
 use std::default::Default;
-use settings::Settings;
 use std::fmt::{Display, Formatter, Result};
 
 pub static mut HOLIDAY_DURATION: i64 = 0;
@@ -27,7 +28,7 @@ pub struct FlexDay {
     weekday: Option<Weekday>,
     pub start: NaiveTime,
     pub end: NaiveTime,
-    // TODO switch to Duration when chrono supports Serialize/Deserialize
+    // TODO switch to Duration when chrono supports Serialize/Deserialize
     pub pause: i64,
     pub status: DayStatus,
 }
@@ -200,7 +201,8 @@ impl FlexDay {
             DayStatus::Half => "h",
             DayStatus::Sick => "S",
             DayStatus::Weekend => "W",
-        }.to_string()
+        }
+        .to_string()
     }
 
     pub fn total_minutes(&self) -> i64 {

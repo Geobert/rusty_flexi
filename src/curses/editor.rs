@@ -1,4 +1,4 @@
-use timedata::*;
+use crate::timedata::*;
 use chrono::{NaiveTime, Weekday, Duration, Timelike};
 use std::ops::{Add, Sub};
 

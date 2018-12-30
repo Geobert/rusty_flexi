@@ -1,6 +1,6 @@
-use timedata::*;
+use crate::timedata::*;
 use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Timelike, Weekday};
-use settings::Settings;
+use crate::settings::Settings;
 use super::Curses;
 use pancurses::{Input, Window, COLOR_PAIR};
 use std::ops::{Add, Sub};

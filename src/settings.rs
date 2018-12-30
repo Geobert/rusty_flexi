@@ -1,11 +1,12 @@
+use crate::savable::Savable;
+use crate::timedata::{weekday_to_string, HOLIDAY_DURATION};
 use chrono::{Datelike, Duration, NaiveDate, NaiveTime, Timelike, Weekday};
-use savable::Savable;
+use serde_derive::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::error::Error;
 use std::fmt::{Display, Formatter, Result};
 use std::fs::File;
 use std::io::prelude::*;
-use timedata::{weekday_to_string, HOLIDAY_DURATION};
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq)]
 pub struct SettingsDay {
@@ -243,7 +244,10 @@ mod tests {
   "holidays_per_year": 26.0,
   "week_goal": 2220,
   "holiday_duration": 444,
-  "offset": 0
+  "offsets": {
+    "entry": 0,
+    "exit": 0
+  }
 }"#
     }
 
@@ -268,8 +272,8 @@ mod tests {
     #[test]
     fn settings_from_json_test() {
         let json = expected_test_json();
-        let settings = Settings::from_json(json);
-        let expected: Settings = Default::default();
+        let settings = Settings::from_json(json).expect("should be a json");
+        let expected = Settings::default();
         assert_eq!(settings, expected);
     }
 
