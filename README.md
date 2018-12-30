@@ -5,10 +5,13 @@ Lucky to work in a company where Flexi time is available, I take the opportunity
 a flexi time tracker to learn Rust.
 
 # Quick start
-At first launch, use arrows key to select and configure your schedule and how many holidays you have, and how much you have left for the current year and hit ESC to begin. Press 'o' to recall this screen (will apply to not already created month).
+At first launch, use arrows key to select and configure your schedule and how many
+holidays you have, and how much you have left for the current year and hit ESC to begin.
+Press 'o' to recall this screen (will apply to not already created month).
 
-On the main view, use UP/DOWN to select the day to edit and ENTER to go to edit mode. 
-Use LEFT/RIGHT to select the field, UP/DOWN to edit it by one unit, or type the wanted value. Press ENTER or ESC to finish.
+On the main view, use UP/DOWN to select the day to edit and ENTER to go to edit mode. Use
+LEFT/RIGHT to select the field, UP/DOWN to edit it by one unit, or type the wanted value.
+Press ENTER or ESC to finish.
 
 Press HOME to focus the current day.
 
@@ -34,12 +37,16 @@ Press HOME to focus the current day.
 # Tricks
 You can manually add to `settings.json` just before the last closing brace:
 ```
-"offset": value_in_minutes
+"offsets": {
+  "entry": value_in_minutes,
+  "exit": value_in_minutes,
+}
 ```
-This will affect `b` and `e` hotkeys by removing/adding this offset to the current time.
+This will affect `b` (entry's value) and `e` (exit's value) hotkeys by removing/adding
+this offset to the current time.
 
 I use it to set the time it takes to go from the badge reader to my desk so the input time
-is correct
+is correct.
 
 # Build instruction
 The whole project is only tested on Windows 7/10, should build on other platform with a
