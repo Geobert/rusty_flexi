@@ -1,9 +1,10 @@
+use crate::timedata::DayStatus;
+use crate::timedata::FlexDay;
 use chrono::Weekday;
-use timedata::FlexDay;
-use timedata::DayStatus;
-use std::iter::Iterator;
+use serde_derive::{Deserialize, Serialize};
 use std::default::Default;
-use std::fmt::{Display, Result, Formatter};
+use std::fmt::{Display, Formatter, Result};
+use std::iter::Iterator;
 use std::ops::{Index, IndexMut};
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Debug)]
@@ -35,10 +36,9 @@ impl FlexWeek {
     }
 
     pub fn total_minutes(&self) -> i64 {
-        self.days.iter().fold(
-            0,
-            |acc, &day| acc + day.total_minutes(),
-        )
+        self.days
+            .iter()
+            .fold(0, |acc, &day| acc + day.total_minutes())
     }
 
     pub fn total_str(&self) -> String {
@@ -49,7 +49,9 @@ impl FlexWeek {
 
 impl Default for FlexWeek {
     fn default() -> FlexWeek {
-        let mut w = FlexWeek { days: [Default::default(); 7] };
+        let mut w = FlexWeek {
+            days: [Default::default(); 7],
+        };
         let mut wd = Weekday::Mon;
         for day in &mut (w.days) {
             day.set_weekday(wd);
@@ -78,7 +80,9 @@ mod tests {
 
     #[test]
     fn total_minutes_test() {
-        let mut w = FlexWeek { days: [Default::default(); 7] };
+        let mut w = FlexWeek {
+            days: [Default::default(); 7],
+        };
         assert_eq!(w.total_minutes(), (8 * 60 - 30) * 7);
 
         w = Default::default();

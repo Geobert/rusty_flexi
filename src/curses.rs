@@ -6,9 +6,9 @@ mod navigator;
 
 use chrono::{Datelike, Duration, NaiveDate, Timelike};
 use pancurses::*;
-use settings::Settings;
+use crate::settings::Settings;
 use std::collections::HashMap;
-use timedata::{month_to_string, DayStatus, DaysOff, FlexDay, FlexMonth, FlexWeek};
+use crate::timedata::{month_to_string, DayStatus, DaysOff, FlexDay, FlexMonth, FlexWeek};
 
 pub struct Curses<'a> {
     pub main_win: &'a Window,
@@ -225,7 +225,7 @@ impl<'a> Curses<'a> {
             &format!("Holidays left: {: >6}", off.holidays_left),
         );
 
-        self.stat_win.mvprintw(start_y + 9, pad_x, "Sick days from");
+        self.stat_win.mvprintw(start_y + 9, pad_x, "Sick days for");
         self.stat_win.mvprintw(
             start_y + 10,
             pad_x,

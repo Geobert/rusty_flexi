@@ -1,15 +1,16 @@
 [package]
 name = "rusty_flexi"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Geobert Quach <geobert@pm.me>"]
+edition = "2018"
 
 [dependencies]
 serde = "1.0"
 serde_derive = "1.0"
-serde_json = "1.0.16"
-chrono = { version = "0.4.2", features = ["serde"] }
-pdcurses-sys = "0.7.0"
-pancurses = "0.15.0"
-failure = "0.1.1"
-failure_derive = "0.1.1"
+serde_json = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+pdcurses-sys = "0.7"
+pancurses = "0.16"
+failure = "0.1.4"
+failure_derive = "0.1.4"
 glob = "0.2"

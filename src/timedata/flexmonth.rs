@@ -1,11 +1,12 @@
+use crate::savable::Savable;
+use crate::settings::Settings;
+use crate::timedata::{DayStatus, FlexDay, FlexWeek, NaiveDateIter, SickDays};
 use chrono::{Datelike, NaiveDate, Weekday};
-use savable::Savable;
-use settings::Settings;
+use serde_derive::{Deserialize, Serialize};
 use std::error::Error;
 use std::fmt::{Display, Formatter, Result};
 use std::fs::File;
 use std::io::prelude::*;
-use timedata::{DayStatus, FlexDay, FlexWeek, NaiveDateIter, SickDays};
 
 #[derive(Serialize, Deserialize, Default, PartialEq, Debug, Clone)]
 pub struct FlexMonth {
@@ -13,7 +14,7 @@ pub struct FlexMonth {
     pub year: i32,
     pub month: u32,
     pub one_week_goal: i64,
-    pub balance: i64, // TODO switch i64 to Duration when chrono supports Serialize/Deserialize
+    pub balance: i64, // TODO switch i64 to Duration when chrono supports Serialize/Deserialize
 }
 
 impl Display for FlexMonth {
@@ -124,8 +125,17 @@ impl FlexMonth {
             Err(_) => (FlexMonth::new(year, month, &settings), false),
             Ok(mut file) => {
                 let mut json = String::new();
-                file.read_to_string(&mut json).expect("Failed to read file");
-                (FlexMonth::from_json(&json), true)
+                file.read_to_string(&mut json).expect(&format!(
+                    "Failed to read file: {}",
+                    FlexMonth::filename(year, month)
+                ));
+                (
+                    FlexMonth::from_json(&json).expect(&format!(
+                        "Failed to deserialized {}",
+                        FlexMonth::filename(year, month)
+                    )),
+                    true,
+                )
             }
         }
     }
@@ -168,10 +178,11 @@ impl FlexMonth {
     }
 
     pub fn load_with_file(path: String) -> FlexMonth {
-        let mut file = File::open(path).unwrap();
+        let mut file = File::open(&path).unwrap();
         let mut json = String::new();
-        file.read_to_string(&mut json).expect("Failed to read file");
-        FlexMonth::from_json(&json)
+        file.read_to_string(&mut json)
+            .expect(&format!("Failed to read file {}", path));
+        FlexMonth::from_json(&json).expect(&format!("Failed to deserialized  {}", path))
     }
 
     pub fn get_week_with_day(&self, d: NaiveDate) -> Option<(&FlexDay, &FlexWeek, i32)> {
@@ -228,13 +239,14 @@ impl FlexMonth {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use timedata;
+    use crate::timedata;
 
     #[test]
     fn get_week_with_day_test() {
         let settings: Settings = Default::default();
         let m = FlexMonth::new(2017, 05, &settings);
-        let w = m.get_week_with_day(NaiveDate::from_ymd(2017, 05, 10))
+        let w = m
+            .get_week_with_day(NaiveDate::from_ymd(2017, 05, 10))
             .unwrap();
         assert_eq!(w.1.days[0].date.unwrap().day(), 8);
     }
