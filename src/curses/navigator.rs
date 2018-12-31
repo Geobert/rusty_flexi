@@ -1,12 +1,12 @@
-use crate::timedata::*;
-use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Timelike, Weekday};
-use crate::settings::Settings;
-use super::Curses;
-use pancurses::{Input, Window, COLOR_PAIR};
-use std::ops::{Add, Sub};
 use super::editor;
 use super::editor::TimeField;
+use super::Curses;
+use crate::settings::Settings;
+use crate::timedata::*;
+use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Timelike, Weekday};
 use failure::Error;
+use pancurses::{Input, Window, COLOR_PAIR};
+use std::ops::{Add, Sub};
 
 pub struct Navigator<'a> {
     current_month: FlexMonth,
@@ -76,8 +76,8 @@ impl<'a> Navigator<'a> {
     fn last_day_of_month_at_current_weekday(&self) -> NaiveDate {
         self.current_month.weeks[self.current_month.weeks.len() - 1]
             [self.current_day.weekday().num_days_from_monday()]
-            .date
-            .expect("change_month: should have date")
+        .date
+        .expect("change_month: should have date")
     }
 
     fn select_day_in_month(&self, date: NaiveDate, month: &FlexMonth) -> Option<NaiveDate> {
@@ -198,12 +198,8 @@ impl<'a> Navigator<'a> {
         let mut cur_field: usize = match d.status {
             DayStatus::Weekend | DayStatus::Sick | DayStatus::Holiday => 0,
             _ => {
-                if selected_day < today {
-                    4
-                } else if selected_day > today {
+                if selected_day > today || now < NaiveTime::from_hms(12, 00, 00) {
                     2
-                } else if now < NaiveTime::from_hms(12, 00, 00) {
-                    2 // set to start min field
                 } else {
                     4 // set to end min field
                 }
@@ -331,7 +327,8 @@ impl<'a> Navigator<'a> {
 
     fn update_display_post_edit(&mut self, old_status: DayStatus, d: FlexDay) -> Result<(), Error> {
         self.days_off.update_days_off(old_status, d);
-        let week = self.current_month
+        let week = self
+            .current_month
             .update_day(d)
             .expect("Should find a week");
         self.current_month.update_balance();
