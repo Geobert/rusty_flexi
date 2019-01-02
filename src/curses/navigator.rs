@@ -83,26 +83,20 @@ impl<'a> Navigator<'a> {
                         Input::Character(c) if c == 'b' || c == 'e' => {
                             let today = chrono::Local::today().naive_local();
                             self.select_day(today, &settings);
-                            let offset = Duration::minutes(if c == 'b' {
-                                settings.offsets.entry
-                            } else {
-                                settings.offsets.exit
-                            });
                             let t = chrono::Local::now().naive_local().time();
                             let t = NaiveTime::from_hms(t.hour(), t.minute(), 0); // clear seconds
-                            self.change_time(
-                                if c == 'b' {
-                                    t.sub(offset)
-                                } else {
-                                    t.add(offset)
-                                },
-                                if c == 'b' {
-                                    HourField::Begin
-                                } else {
-                                    HourField::End
-                                },
-                                &settings,
-                            )?;
+                            let (t, field) = if c == 'b' {
+                                (
+                                    t.sub(Duration::minutes(settings.offsets.entry)),
+                                    HourField::Begin,
+                                )
+                            } else {
+                                (
+                                    t.add(Duration::minutes(settings.offsets.exit)),
+                                    HourField::End,
+                                )
+                            };
+                            self.change_time(t, field, &settings)?;
                             self.edit_day(&settings)?;
                         }
                         _ => {
