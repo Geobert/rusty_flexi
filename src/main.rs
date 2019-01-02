@@ -5,6 +5,7 @@ mod savable;
 mod settings;
 mod timedata;
 
+// use crate::curses::settingseditor;
 use crate::curses::*;
 use crate::settings::Settings;
 use crate::timedata::FlexMonth;
@@ -40,7 +41,11 @@ fn main() -> Result<(), Error> {
     generate_xmas_holidays(today.year(), &settings);
 
     if need_edit_settings {
-        navigator.edit_settings(&mut settings)?;
+        settingseditor::edit_settings(
+            &mut navigator.curses,
+            &mut settings,
+            &mut navigator.days_off,
+        )?;
     }
     navigator.init(&settings);
 
@@ -75,7 +80,11 @@ fn main() -> Result<(), Error> {
                         navigator.change_status(c, &settings)?;
                     }
                     Input::Character('o') => {
-                        navigator.edit_settings(&mut settings)?;
+                        settingseditor::edit_settings(
+                            &mut navigator.curses,
+                            &mut settings,
+                            &mut navigator.days_off,
+                        )?;
                     }
                     Input::KeyHome => {
                         let today = chrono::Local::today().naive_local();

@@ -1,9 +1,10 @@
+pub use self::navigator::Direction;
 pub use self::navigator::HourField;
 pub use self::navigator::Navigator;
-pub use self::navigator::Direction;
 
 mod editor;
 mod navigator;
+pub mod settingseditor;
 
 use crate::settings::Settings;
 use crate::timedata::*;
