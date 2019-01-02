@@ -12,6 +12,16 @@ use chrono::{Datelike, Duration, NaiveDate, Timelike, Weekday};
 use pancurses::*;
 use std::collections::HashMap;
 
+pub fn init_window(window: &Window) {
+    window.keypad(true);
+    noecho();
+    cbreak();
+    start_color();
+    curs_set(0);
+    resize_term(15, 76);
+    init_pair(1, COLOR_RED, COLOR_BLACK);
+}
+
 pub struct Curses<'a> {
     pub main_win: &'a Window,
     pub week_win: Window,

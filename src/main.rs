@@ -21,14 +21,7 @@ fn generate_xmas_holidays(year: i32, settings: &Settings) {
 fn main() -> Result<(), Error> {
     timedata::create_data_dir();
     let window = initscr();
-    window.keypad(true);
-    noecho();
-    cbreak();
-    start_color();
-    curs_set(0);
-    resize_term(15, 76);
-
-    init_pair(1, COLOR_RED, COLOR_BLACK);
+    curses::init_window(&window);
     let today = chrono::Local::today().naive_local();
     let (mut settings, need_edit_settings) = if let Some(settings) = Settings::load() {
         (settings, false)
