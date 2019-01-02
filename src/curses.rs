@@ -1,14 +1,15 @@
 pub use self::navigator::HourField;
 pub use self::navigator::Navigator;
+pub use self::navigator::Direction;
 
 mod editor;
 mod navigator;
 
-use chrono::{Datelike, Duration, NaiveDate, Timelike};
-use pancurses::*;
 use crate::settings::Settings;
+use crate::timedata::*;
+use chrono::{Datelike, Duration, NaiveDate, Timelike, Weekday};
+use pancurses::*;
 use std::collections::HashMap;
-use crate::timedata::{month_to_string, DayStatus, DaysOff, FlexDay, FlexMonth, FlexWeek};
 
 pub struct Curses<'a> {
     pub main_win: &'a Window,
@@ -243,7 +244,8 @@ impl<'a> Curses<'a> {
     pub fn open_settings(&mut self, settings: &Settings, off: &DaysOff) {
         let width = 60;
         let height = 14;
-        let option = self.main_win
+        let option = self
+            .main_win
             .subwin(
                 height,
                 width,
@@ -407,5 +409,17 @@ impl<'a> Curses<'a> {
         win.attroff(A_REVERSE);
         win.refresh();
         self.option_win = Some(win);
+    }
+
+    pub fn cur_y_in_week(&self, d: &FlexDay) -> i32 {
+        match d.weekday().expect("weekday not set, impossible") {
+            Weekday::Mon => 2,
+            Weekday::Tue => 3,
+            Weekday::Wed => 4,
+            Weekday::Thu => 5,
+            Weekday::Fri => 6,
+            Weekday::Sat => 7,
+            Weekday::Sun => 8,
+        }
     }
 }
