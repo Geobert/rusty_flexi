@@ -9,10 +9,9 @@ mod timedata;
 use crate::curses::*;
 use crate::settings::Settings;
 use crate::timedata::FlexMonth;
-use chrono::{Datelike, Duration, NaiveTime, Timelike};
+use chrono::Datelike;
 use failure::Error;
 use pancurses::*;
-use std::ops::{Add, Sub};
 
 fn generate_xmas_holidays(year: i32, settings: &Settings) {
     FlexMonth::load(year, 12, &settings);
@@ -48,81 +47,7 @@ fn main() -> Result<(), Error> {
         )?;
     }
     navigator.init(&settings);
-
-    let mut done = false;
-    while !done {
-        match window.getch() {
-            Some(c) => {
-                match c {
-                    Input::Character('q') | Input::Character('\x1B') => done = true,
-                    Input::KeyUp => {
-                        navigator.select_prev_day(&settings);
-                    }
-                    Input::KeyDown => {
-                        navigator.select_next_day(&settings);
-                    }
-                    Input::KeyLeft => {
-                        navigator.select_prev_week(&settings);
-                    }
-                    Input::KeyRight => {
-                        navigator.select_next_week(&settings);
-                    }
-                    Input::KeyPPage => {
-                        navigator.change_month(Direction::Previous, &settings);
-                    }
-                    Input::KeyNPage => {
-                        navigator.change_month(Direction::Next, &settings);
-                    }
-                    Input::Character('\n') => {
-                        navigator.edit_day(&settings)?;
-                    }
-                    Input::Character(c) if c == 'h' || c == 's' => {
-                        navigator.change_status(c, &settings)?;
-                    }
-                    Input::Character('o') => {
-                        settingseditor::edit_settings(
-                            &mut navigator.curses,
-                            &mut settings,
-                            &mut navigator.days_off,
-                        )?;
-                    }
-                    Input::KeyHome => {
-                        let today = chrono::Local::today().naive_local();
-                        navigator.select_day(today, &settings);
-                    }
-                    Input::Character(c) if c == 'b' || c == 'e' => {
-                        let today = chrono::Local::today().naive_local();
-                        navigator.select_day(today, &settings);
-                        let offset = Duration::minutes(if c == 'b' {
-                            settings.offsets.entry
-                        } else {
-                            settings.offsets.exit
-                        });
-                        let t = chrono::Local::now().naive_local().time();
-                        let t = NaiveTime::from_hms(t.hour(), t.minute(), 0); // clear seconds
-                        navigator.change_time(
-                            if c == 'b' {
-                                t.sub(offset)
-                            } else {
-                                t.add(offset)
-                            },
-                            if c == 'b' {
-                                HourField::Begin
-                            } else {
-                                HourField::End
-                            },
-                            &settings,
-                        )?;
-                        navigator.edit_day(&settings)?;
-                    }
-                    _ => {
-                        println!("unknown: {:?}", c);
-                    }
-                }
-            }
-            None => {}
-        }
-    }
+    navigator.main_loop(&window, &mut settings)?;
     endwin();
     Ok(())
 }

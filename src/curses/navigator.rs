@@ -1,5 +1,6 @@
 use super::editor;
 use super::Curses;
+use crate::curses::settingseditor;
 use crate::settings::Settings;
 use crate::timedata::*;
 use chrono::{Datelike, Duration, Local, NaiveDate, NaiveTime, Timelike, Weekday};
@@ -33,27 +34,86 @@ impl<'a> Navigator<'a> {
             current_day: cur_day,
             curses: Curses::new(&screen),
         };
-
-        // let mut nav = match settings {
-        //     Some(settings) =>
-        //     },
-        //     None => {
-        //         // No settings, load defaults and open settings editor
-        //         let settings = Settings::default();
-        //         let mut n = Navigator {
-        //             days_off: DaysOff::load(cur_day.year(), &settings),
-        //             current_month: FlexMonth::load(cur_day.year(), cur_day.month(), &settings),
-        //             current_day: cur_day,
-        //             curses: Curses::new(&screen),
-        //             settings: settings,
-        //         };
-        //         n.edit_settings()?;
-        //         n.current_month = FlexMonth::load(cur_day.year(), cur_day.month(), &n.settings);
-        //         n
-        //     }
-        // };
         nav.days_off.roll_sick_days();
         nav
+    }
+
+    pub fn main_loop(&mut self, window: &Window, mut settings: &mut Settings) -> Result<(), Error> {
+        let mut done = false;
+        while !done {
+            match window.getch() {
+                Some(c) => {
+                    match c {
+                        Input::Character('q') | Input::Character('\x1B') => done = true,
+                        Input::KeyUp => {
+                            self.select_prev_day(&settings);
+                        }
+                        Input::KeyDown => {
+                            self.select_next_day(&settings);
+                        }
+                        Input::KeyLeft => {
+                            self.select_prev_week(&settings);
+                        }
+                        Input::KeyRight => {
+                            self.select_next_week(&settings);
+                        }
+                        Input::KeyPPage => {
+                            self.change_month(Direction::Previous, &settings);
+                        }
+                        Input::KeyNPage => {
+                            self.change_month(Direction::Next, &settings);
+                        }
+                        Input::Character('\n') => {
+                            self.edit_day(&settings)?;
+                        }
+                        Input::Character(c) if c == 'h' || c == 's' => {
+                            self.change_status(c, &settings)?;
+                        }
+                        Input::Character('o') => {
+                            settingseditor::edit_settings(
+                                &mut self.curses,
+                                &mut settings,
+                                &mut self.days_off,
+                            )?;
+                        }
+                        Input::KeyHome => {
+                            let today = chrono::Local::today().naive_local();
+                            self.select_day(today, &settings);
+                        }
+                        Input::Character(c) if c == 'b' || c == 'e' => {
+                            let today = chrono::Local::today().naive_local();
+                            self.select_day(today, &settings);
+                            let offset = Duration::minutes(if c == 'b' {
+                                settings.offsets.entry
+                            } else {
+                                settings.offsets.exit
+                            });
+                            let t = chrono::Local::now().naive_local().time();
+                            let t = NaiveTime::from_hms(t.hour(), t.minute(), 0); // clear seconds
+                            self.change_time(
+                                if c == 'b' {
+                                    t.sub(offset)
+                                } else {
+                                    t.add(offset)
+                                },
+                                if c == 'b' {
+                                    HourField::Begin
+                                } else {
+                                    HourField::End
+                                },
+                                &settings,
+                            )?;
+                            self.edit_day(&settings)?;
+                        }
+                        _ => {
+                            println!("unknown: {:?}", c);
+                        }
+                    }
+                }
+                None => {}
+            }
+        }
+        Ok(())
     }
 
     pub fn get_current_day(&self) -> &FlexDay {
