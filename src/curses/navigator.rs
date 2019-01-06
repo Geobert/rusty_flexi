@@ -11,6 +11,7 @@ use std::ops::{Add, Sub};
 pub struct Navigator<'a> {
     current_month: FlexMonth,
     current_day: NaiveDate,
+    undo_days: Vec<FlexDay>,
     pub days_off: DaysOff,
     pub curses: Curses<'a>,
 }
@@ -33,6 +34,7 @@ impl<'a> Navigator<'a> {
             current_month: FlexMonth::load(cur_day.year(), cur_day.month(), &settings),
             current_day: cur_day,
             curses: Curses::new(&screen),
+            undo_days: vec![],
         };
         nav.days_off.roll_sick_days();
         nav
@@ -64,6 +66,7 @@ impl<'a> Navigator<'a> {
                             self.change_month(Direction::Next, &settings);
                         }
                         Input::Character('\n') => {
+                            self.store_undo(self.get_current_day().clone(), &settings);
                             self.edit_day(&settings)?;
                         }
                         Input::Character(c) if c == 'h' || c == 's' => {
@@ -76,6 +79,9 @@ impl<'a> Navigator<'a> {
                                 &mut self.days_off,
                             )?;
                         }
+                        Input::Character('u') => {
+                            self.undo(&settings)?;
+                        }
                         Input::KeyHome => {
                             let today = chrono::Local::today().naive_local();
                             self.select_day(today, &settings);
@@ -83,6 +89,7 @@ impl<'a> Navigator<'a> {
                         Input::Character(c) if c == 'b' || c == 'e' => {
                             let today = chrono::Local::today().naive_local();
                             self.select_day(today, &settings);
+                            self.store_undo(self.get_current_day().clone(), &settings);
                             let t = chrono::Local::now().naive_local().time();
                             let t = NaiveTime::from_hms(t.hour(), t.minute(), 0); // clear seconds
                             let (t, field) = if c == 'b' {
@@ -405,6 +412,26 @@ impl<'a> Navigator<'a> {
             .print_status(&settings, &self.current_month, &self.days_off);
         self.curses
             .print_week_total(&week, week.total_minutes() < settings.week_goal);
+        Ok(())
+    }
+
+    fn store_undo(&mut self, day: FlexDay, settings: &Settings) {
+        while self.undo_days.len() >= settings.max_undo {
+            self.undo_days.remove(0);
+        }
+        self.undo_days.push(day);
+    }
+
+    fn undo(&mut self, settings: &Settings) -> Result<(), Error> {
+        if !self.undo_days.is_empty() {
+            let day_to_restore = self.undo_days.pop().unwrap();
+            self.select_day(
+                day_to_restore.date.expect("undo day should have a date"),
+                &settings,
+            );
+            let old_status = self.get_current_day().status;
+            self.update_display_post_direct_edit(old_status, day_to_restore, &settings)?;
+        }
         Ok(())
     }
 }
