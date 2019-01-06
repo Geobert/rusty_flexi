@@ -28,6 +28,7 @@ Press HOME to focus the current day.
  * `Arrow Left/Right` navigate by week
  * `Page Up/Down` to navigate by month
  * `o` to open options
+ * `u` undo up to 5 last edition
 
 ## Edit mode
  * `Arrows left/right` to move fields
@@ -35,6 +36,8 @@ Press HOME to focus the current day.
  * Typing number edit the field as well
 
 # Tricks
+
+## Offsets
 You can manually add to `settings.json` just before the last closing brace:
 ```
 "offsets": {
@@ -47,6 +50,11 @@ this offset to the current time.
 
 I use it to set the time it takes to go from the badge reader to my desk so the input time
 is correct.
+
+## Undo
+
+You can set the maximum undo to store (5 by default). The more you want, more RAM it will
+use. 
 
 # Build instruction
 The whole project is only tested on Windows 7/10, should build on other platform with a
