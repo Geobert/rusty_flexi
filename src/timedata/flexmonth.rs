@@ -116,7 +116,7 @@ impl FlexMonth {
 
         file.write_all(self.to_json().as_bytes())
             .expect("Unable to write data");
-        file.write("\n".as_bytes()).expect("Unable to write");
+        file.write_all("\n".as_bytes()).expect("Unable to write");
     }
 
     /// return FlexMonth and if it was loaded from json or not

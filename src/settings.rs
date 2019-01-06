@@ -107,6 +107,8 @@ pub struct Settings {
     pub holiday_duration: i64,
     #[serde(default)]
     pub offsets: Offset,
+    #[serde(default = "default_max_undo")]
+    pub max_undo: usize,
 }
 
 fn default_week_goal() -> i64 {
@@ -117,8 +119,12 @@ fn default_holiday_duration() -> i64 {
     default_week_goal() / 5
 }
 
-fn default_holidays_per_year() -> f32 {
+const fn default_holidays_per_year() -> f32 {
     26.0
+}
+
+const fn default_max_undo() -> usize {
+    5
 }
 
 impl Default for Settings {
@@ -129,6 +135,7 @@ impl Default for Settings {
             week_goal: default_week_goal(),
             holiday_duration: default_holiday_duration(),
             offsets: Offset { entry: 0, exit: 0 },
+            max_undo: 5,
         };
         unsafe {
             HOLIDAY_DURATION = settings.holiday_duration;
@@ -150,7 +157,8 @@ impl Settings {
         }
         file.write_all(self.to_json().as_bytes())
             .expect("Unable to write data");
-        file.write("\n".as_bytes()).expect("Unable to write \\n");
+        file.write_all("\n".as_bytes())
+            .expect("Unable to write \\n");
     }
 
     pub fn load() -> Option<Settings> {
@@ -247,7 +255,8 @@ mod tests {
   "offsets": {
     "entry": 0,
     "exit": 0
-  }
+  },
+  "max_undo": 5
 }"#
     }
 

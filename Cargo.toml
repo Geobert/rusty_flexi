@@ -1,6 +1,6 @@
 [package]
 name = "rusty_flexi"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Geobert Quach <geobert@pm.me>"]
 edition = "2018"
 
@@ -11,6 +11,6 @@ serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 pdcurses-sys = "0.7"
 pancurses = "0.16"
-failure = "0.1.4"
-failure_derive = "0.1.4"
+failure = "0.1.5"
+failure_derive = "0.1.5"
 glob = "0.2"
