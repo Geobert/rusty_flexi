@@ -27,6 +27,9 @@ pub enum Direction {
     Next,
 }
 
+const FLD_MINUTE_START: usize = 2;
+const FLD_MINUTE_END: usize = 4;
+
 impl<'a> Navigator<'a> {
     pub fn new(cur_day: NaiveDate, screen: &'a Window, settings: &Settings) -> Self {
         let mut nav = Navigator {
@@ -258,10 +261,16 @@ impl<'a> Navigator<'a> {
         let mut cur_field: usize = match d.status {
             DayStatus::Weekend | DayStatus::Sick | DayStatus::Holiday => 0,
             _ => {
-                if selected_day > today || now < NaiveTime::from_hms(12, 00, 00) {
-                    2
+                if selected_day == today {
+                    if now < NaiveTime::from_hms(12, 00, 00) {
+                        FLD_MINUTE_START
+                    } else {
+                        FLD_MINUTE_END
+                    }
+                } else if selected_day > today {
+                    FLD_MINUTE_START
                 } else {
-                    4 // set to end min field
+                    FLD_MINUTE_END
                 }
             }
         };
