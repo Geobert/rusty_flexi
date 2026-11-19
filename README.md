@@ -60,7 +60,7 @@ use.
 The whole project is only tested on Windows 7/10, should build on other platform with a
 few edits but I'm not able to provide support if any issue arise.
 
-On Windows, to use `build.bat`, you need http://angusj.com/resourcehacker/ to be installed
+On Windows, to use `build.bat`, you need http://angusj.com/resourcehacker/ or [Resource Cracker](https://www.pelock.com/products/resource-cracker) to be installed
 in order to have an icon with the exe.
 Edit `build.bat` according to the installation path.
 
